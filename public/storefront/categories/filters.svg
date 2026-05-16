@@ -1,0 +1,39 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1200" rx="64" fill="#0A1D29"/>
+  <rect width="1600" height="1200" fill="url(#bg-filters)"/>
+  <ellipse cx="276" cy="254" rx="226" ry="226" fill="#DBF4FF" fill-opacity="0.2"/>
+  <ellipse cx="1278" cy="972" rx="320" ry="254" fill="#38BDF8" fill-opacity="0.2"/>
+  <g filter="url(#glow-filters)">
+    <circle cx="1140" cy="300" r="230" fill="#164E63" fill-opacity="0.74"/>
+  </g>
+  <path d="M196 902C418 786 676 734 998 740C1216 744 1364 790 1494 842V1200H196V902Z" fill="url(#ground-filters)"/>
+  <g filter="url(#shadow-filters)">
+    <path d="M544 364C544 332.072 569.872 306 601.8 306H1056.2C1088.13 306 1114 332.072 1114 364V838C1114 869.928 1088.13 896 1056.2 896H601.8C569.872 896 544 869.928 544 838V364Z" fill="#0F172A"/>
+    <path d="M606 348C606 328.118 622.118 312 642 312H1016C1035.88 312 1052 328.118 1052 348V854C1052 873.882 1035.88 890 1016 890H642C622.118 890 606 873.882 606 854V348Z" fill="#E0F2FE"/>
+    <rect x="654" y="362" width="42" height="474" rx="21" fill="#0EA5E9"/>
+    <rect x="716" y="362" width="42" height="474" rx="21" fill="#38BDF8"/>
+    <rect x="778" y="362" width="42" height="474" rx="21" fill="#7DD3FC"/>
+    <rect x="840" y="362" width="42" height="474" rx="21" fill="#38BDF8"/>
+    <rect x="902" y="362" width="42" height="474" rx="21" fill="#0EA5E9"/>
+    <rect x="964" y="362" width="42" height="474" rx="21" fill="#0369A1"/>
+    <path d="M622 838H1038" stroke="#0F172A" stroke-width="34" stroke-linecap="round"/>
+    <path d="M652 880H1008" stroke="#38BDF8" stroke-width="18" stroke-linecap="round" stroke-opacity="0.48"/>
+  </g>
+  <defs>
+    <linearGradient id="bg-filters" x1="148" y1="70" x2="1462" y2="1142" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="0.48" stop-color="#0A2533"/>
+      <stop offset="1" stop-color="#0C4A6E"/>
+    </linearGradient>
+    <linearGradient id="ground-filters" x1="845" y1="740" x2="845" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A" stop-opacity="0"/>
+      <stop offset="1" stop-color="#08131E"/>
+    </linearGradient>
+    <filter id="glow-filters" x="710" y="-130" width="860" height="860" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="100"/>
+    </filter>
+    <filter id="shadow-filters" x="478" y="250" width="702" height="712" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#082F49" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+</svg>

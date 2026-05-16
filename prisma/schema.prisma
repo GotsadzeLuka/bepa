@@ -1,0 +1,232 @@
+// Prisma Schema for BEPA E-commerce
+// This schema mirrors the Supabase database structure
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =====================================================
+// PROFILES (extends Supabase auth.users)
+// =====================================================
+model Profile {
+  id        String   @id @db.Uuid
+  email     String
+  fullName  String?  @map("full_name")
+  phone     String?
+  address   String?
+  role      Role     @default(user)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  orders    Order[]
+  wishlist  Wishlist[]
+  reviews   Review[]
+
+  @@map("profiles")
+}
+
+enum Role {
+  user
+  admin
+}
+
+// =====================================================
+// CATEGORIES
+// =====================================================
+model Category {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nameEn        String   @map("name_en")
+  nameKa        String   @map("name_ka")
+  slug          String   @unique
+  imageUrl      String?  @map("image_url")
+  descriptionEn String?  @map("description_en")
+  descriptionKa String?  @map("description_ka")
+  isActive      Boolean  @default(true) @map("is_active")
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  products Product[]
+
+  @@map("categories")
+}
+
+// =====================================================
+// PRODUCTS
+// =====================================================
+model Product {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId    String?  @map("category_id") @db.Uuid
+  nameEn        String   @map("name_en")
+  nameKa        String   @map("name_ka")
+  slug          String   @unique
+  descriptionEn String?  @map("description_en")
+  descriptionKa String?  @map("description_ka")
+  price         Decimal  @db.Decimal(10, 2)
+  salePrice     Decimal? @map("sale_price") @db.Decimal(10, 2)
+  sku           String?
+  stock         Int      @default(0)
+  isActive      Boolean  @default(true) @map("is_active")
+  isFeatured    Boolean  @default(false) @map("is_featured")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  category   Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  images     ProductImage[]
+  variants   ProductVariant[]
+  orderItems OrderItem[]
+  wishlist   Wishlist[]
+  reviews    Review[]
+
+  @@map("products")
+}
+
+// =====================================================
+// PRODUCT IMAGES
+// =====================================================
+model ProductImage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  url       String
+  altText   String?  @map("alt_text")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// =====================================================
+// PRODUCT VARIANTS
+// =====================================================
+model ProductVariant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  nameEn    String   @map("name_en")
+  nameKa    String   @map("name_ka")
+  sku       String?
+  price     Decimal  @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@map("product_variants")
+}
+
+// =====================================================
+// ORDERS
+// =====================================================
+model Order {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String?     @map("user_id") @db.Uuid
+  status          OrderStatus @default(pending)
+  total           Decimal     @db.Decimal(10, 2)
+  shippingAddress Json        @map("shipping_address")
+  notes           String?
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  user  Profile?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+// =====================================================
+// ORDER ITEMS
+// =====================================================
+model OrderItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String   @map("order_id") @db.Uuid
+  productId String?  @map("product_id") @db.Uuid
+  variantId String?  @map("variant_id") @db.Uuid
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@map("order_items")
+}
+
+// =====================================================
+// WISHLIST
+// =====================================================
+model Wishlist {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist")
+}
+
+// =====================================================
+// REVIEWS
+// =====================================================
+model Review {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  rating     Int
+  comment    String?
+  isApproved Boolean  @default(false) @map("is_approved")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+// =====================================================
+// NEWS
+// =====================================================
+model News {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String?
+  imageUrl    String?  @map("image_url")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("news")
+}

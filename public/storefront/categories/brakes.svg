@@ -1,0 +1,38 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1200" rx="64" fill="#1C1112"/>
+  <rect width="1600" height="1200" fill="url(#bg-brakes)"/>
+  <ellipse cx="304" cy="234" rx="216" ry="216" fill="#FFE0E7" fill-opacity="0.2"/>
+  <ellipse cx="1258" cy="962" rx="302" ry="246" fill="#F97316" fill-opacity="0.2"/>
+  <g filter="url(#glow-brakes)">
+    <circle cx="1080" cy="320" r="220" fill="#4C0519" fill-opacity="0.7"/>
+  </g>
+  <path d="M210 882C456 780 728 736 1028 752C1202 762 1356 794 1490 848V1200H210V882Z" fill="url(#ground-brakes)"/>
+  <g filter="url(#shadow-brakes)">
+    <circle cx="824" cy="626" r="250" fill="#334155"/>
+    <circle cx="824" cy="626" r="190" fill="#CBD5E1"/>
+    <circle cx="824" cy="626" r="134" fill="#64748B"/>
+    <circle cx="824" cy="626" r="62" fill="#CBD5E1"/>
+    <circle cx="824" cy="626" r="22" fill="#475569"/>
+    <path d="M824 436L852 538L954 566L852 594L824 696L796 594L694 566L796 538L824 436Z" fill="#94A3B8"/>
+    <path d="M824 436L796 538L694 566L796 594L824 696L852 594L954 566L852 538L824 436Z" stroke="#475569" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M1006 454C1040 422 1108 440 1122 486L1156 600C1170 646 1138 694 1090 702L1012 716L946 510L1006 454Z" fill="#DC2626"/>
+    <path d="M1002 480C1020 462 1056 472 1064 496L1088 590C1096 614 1080 638 1056 642L1008 650L968 516L1002 480Z" fill="#FCA5A5"/>
+  </g>
+  <defs>
+    <linearGradient id="bg-brakes" x1="158" y1="76" x2="1452" y2="1140" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="0.54" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#7C2D12"/>
+    </linearGradient>
+    <linearGradient id="ground-brakes" x1="850" y1="752" x2="850" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0B1120"/>
+    </linearGradient>
+    <filter id="glow-brakes" x="660" y="-100" width="840" height="840" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="100"/>
+    </filter>
+    <filter id="shadow-brakes" x="484" y="316" width="756" height="482" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#0F172A" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+</svg>

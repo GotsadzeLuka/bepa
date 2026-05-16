@@ -1,0 +1,38 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1200" rx="64" fill="#20140A"/>
+  <rect width="1600" height="1200" fill="url(#bg-fluids)"/>
+  <ellipse cx="292" cy="250" rx="230" ry="230" fill="#FFE5C5" fill-opacity="0.22"/>
+  <ellipse cx="1294" cy="960" rx="318" ry="252" fill="#FB923C" fill-opacity="0.22"/>
+  <g filter="url(#glow-fluids)">
+    <circle cx="1150" cy="292" r="226" fill="#7C2D12" fill-opacity="0.68"/>
+  </g>
+  <path d="M198 900C426 790 696 740 1018 746C1222 748 1378 788 1498 842V1200H198V900Z" fill="url(#ground-fluids)"/>
+  <g filter="url(#shadow-fluids)">
+    <path d="M632 272H948L1016 364V882C1016 919.555 985.555 950 948 950H632C594.445 950 564 919.555 564 882V340C564 302.445 594.445 272 632 272Z" fill="#6B2C14"/>
+    <path d="M654 272H930L986 350V870C986 895.405 965.405 916 940 916H640C614.595 916 594 895.405 594 870V330C594 298.177 619.177 272 654 272Z" fill="#F97316"/>
+    <rect x="660" y="416" width="260" height="188" rx="30" fill="#FFF7ED"/>
+    <path d="M680 560C728 512 850 512 900 560V604H680V560Z" fill="#FDBA74"/>
+    <path d="M1126 466C1170 420 1248 438 1272 492L1346 664C1366 712 1340 768 1290 786L1188 822L1044 526L1126 466Z" fill="#111827"/>
+    <path d="M1170 510C1186 494 1216 502 1226 522L1278 638C1288 660 1276 686 1254 694L1200 714L1104 550L1170 510Z" fill="#F59E0B"/>
+    <path d="M718 238H864C884.987 238 902 255.013 902 276V320H680V276C680 255.013 697.013 238 718 238Z" fill="#1F2937"/>
+    <rect x="724" y="454" width="132" height="26" rx="13" fill="#FDBA74"/>
+    <rect x="724" y="500" width="168" height="18" rx="9" fill="#FDBA74" fill-opacity="0.56"/>
+  </g>
+  <defs>
+    <linearGradient id="bg-fluids" x1="148" y1="72" x2="1460" y2="1140" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="0.52" stop-color="#1F2937"/>
+      <stop offset="1" stop-color="#9A3412"/>
+    </linearGradient>
+    <linearGradient id="ground-fluids" x1="848" y1="746" x2="848" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1F2937" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <filter id="glow-fluids" x="724" y="-134" width="852" height="852" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="100"/>
+    </filter>
+    <filter id="shadow-fluids" x="492" y="172" width="938" height="846" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#111827" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+</svg>

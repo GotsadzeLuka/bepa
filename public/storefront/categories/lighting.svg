@@ -1,0 +1,42 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1200" rx="64" fill="#09111F"/>
+  <rect width="1600" height="1200" fill="url(#bg-lighting)"/>
+  <ellipse cx="296" cy="232" rx="228" ry="228" fill="#FFE0B0" fill-opacity="0.22"/>
+  <ellipse cx="1260" cy="982" rx="316" ry="252" fill="#F97316" fill-opacity="0.26"/>
+  <g filter="url(#blur-lighting)">
+    <circle cx="1140" cy="344" r="226" fill="#172554" fill-opacity="0.8"/>
+  </g>
+  <path d="M214 856C412 756 612 708 876 692C1116 678 1346 726 1490 784V1200H214V856Z" fill="url(#road-lighting)"/>
+  <g filter="url(#shadow-lighting)">
+    <path d="M398 624C398 562.144 448.144 512 510 512H1062C1154.78 512 1230 587.216 1230 680V790C1230 851.856 1179.86 902 1118 902H566C473.216 902 398 826.784 398 734V624Z" fill="#111827" fill-opacity="0.88"/>
+    <path d="M458 598C458 562.654 486.654 534 522 534H1004C1080.22 534 1142 595.784 1142 672V742C1142 777.346 1113.35 806 1078 806H596C519.784 806 458 744.216 458 668V598Z" fill="#1F2937"/>
+    <path d="M1080 632L1290 560L1334 648L1142 720L1080 632Z" fill="#FBBF24" fill-opacity="0.92"/>
+    <path d="M1136 686L1398 622L1448 778L1160 804L1136 686Z" fill="#FFEDD5" fill-opacity="0.96"/>
+    <path d="M1148 718L1428 760L1454 838L1158 818L1148 718Z" fill="#FED7AA" fill-opacity="0.88"/>
+    <path d="M466 636H1084" stroke="#94A3B8" stroke-width="18" stroke-linecap="round" stroke-opacity="0.32"/>
+    <path d="M502 700H916" stroke="#CBD5E1" stroke-width="18" stroke-linecap="round" stroke-opacity="0.24"/>
+    <circle cx="574" cy="824" r="78" fill="#020617"/>
+    <circle cx="1042" cy="824" r="78" fill="#020617"/>
+    <circle cx="574" cy="824" r="34" fill="#0F172A"/>
+    <circle cx="1042" cy="824" r="34" fill="#0F172A"/>
+  </g>
+  <path d="M1086 648L1408 536" stroke="#FCD34D" stroke-width="18" stroke-linecap="round" stroke-opacity="0.84"/>
+  <path d="M1142 700L1508 660" stroke="#FFEDD5" stroke-width="18" stroke-linecap="round" stroke-opacity="0.72"/>
+  <defs>
+    <linearGradient id="bg-lighting" x1="154" y1="68" x2="1468" y2="1138" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="0.56" stop-color="#101A31"/>
+      <stop offset="1" stop-color="#7C2D12"/>
+    </linearGradient>
+    <linearGradient id="road-lighting" x1="852" y1="692" x2="852" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827" stop-opacity="0"/>
+      <stop offset="1" stop-color="#050A16"/>
+    </linearGradient>
+    <filter id="blur-lighting" x="714" y="-82" width="852" height="852" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="100"/>
+    </filter>
+    <filter id="shadow-lighting" x="326" y="456" width="1202" height="530" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="30" flood-color="#020617" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+</svg>
