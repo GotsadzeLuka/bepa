@@ -26,13 +26,10 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/s
 import { Button } from '@/components/ui/button'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { createClient } from '@/lib/supabase/client'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { mockCategories } from '@/lib/mock-data'
 import { getCategoryName, normalizeCategory, type StoreCategory } from '@/lib/catalog'
 import { useCartStore } from '@/store/cart'
-
-const hasSupabaseConfig =
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
 export function Header() {
   const t = useTranslations('common')

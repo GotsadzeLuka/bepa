@@ -14,6 +14,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
+import { getSupabaseClientEnv } from '@/lib/supabase/config'
 
 // Role type (matches database enum)
 export type UserRole = 'user' | 'admin'
@@ -36,11 +37,12 @@ export interface AuthUser {
 export async function getAuthUser(): Promise<AuthUser | null> {
   try {
     const cookieStore = await cookies()
+    const { supabaseUrl, supabasePublishableKey } = getSupabaseClientEnv()
     
     // Create Supabase server client with cookies
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabasePublishableKey,
       {
         cookies: {
           getAll() {

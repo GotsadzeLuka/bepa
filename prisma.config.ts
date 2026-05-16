@@ -1,20 +1,15 @@
-// Prisma configuration for BEPA e-commerce
-// Uses environment variables for database connection
-import { config } from "dotenv";
-import { defineConfig } from "prisma/config";
+import { config } from 'dotenv'
+import { defineConfig } from 'prisma/config'
 
-// Load .env.local (Next.js convention) instead of .env
-config({ path: ".env.local" });
+config({ path: '.env' })
+config({ path: '.env.local', override: true })
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
-  migrations: {
-    path: "prisma/migrations",
-  },
+  schema: 'prisma/schema.prisma',
   datasource: {
-    // Pooled connection for runtime queries (better performance)
-    url: process.env["DATABASE_URL"],
-    // Direct connection for migrations (bypasses pgbouncer)
-    directUrl: process.env["DIRECT_URL"],
+    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
   },
-});
+  migrations: {
+    path: 'prisma/migrations',
+  },
+})
