@@ -142,7 +142,7 @@ export function Header() {
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="rounded-full border-white/70 bg-white/76 shadow-sm lg:hidden">
                   <Menu className="h-5 w-5" />
-                  <span className="sr-only">Menu</span>
+                  <span className="sr-only">{t('menu')}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[320px] border-r-white/70 bg-[#f6f3ee] p-0">
@@ -247,19 +247,21 @@ export function Header() {
               variant="outline"
               size="icon"
               className="rounded-full border-white/70 bg-white/76 shadow-sm lg:hidden"
+              aria-expanded={searchOpen}
+              aria-label={t('search')}
               onClick={() => setSearchOpen((open) => !open)}
             >
               <Search className="h-5 w-5" />
             </Button>
 
             <Link href="/wishlist" className="hidden sm:block">
-              <Button variant="outline" size="icon" className="rounded-full border-white/70 bg-white/76 shadow-sm">
+              <Button variant="outline" size="icon" className="rounded-full border-white/70 bg-white/76 shadow-sm" aria-label={t('wishlist')}>
                 <Heart className="h-5 w-5" />
               </Button>
             </Link>
 
             <Link href="/cart" className="relative">
-              <Button variant="outline" size="icon" className="rounded-full border-white/70 bg-white/76 shadow-sm">
+              <Button variant="outline" size="icon" className="rounded-full border-white/70 bg-white/76 shadow-sm" aria-label={t('cart')}>
                 <ShoppingCart className="h-5 w-5" />
                 {hasHydrated && itemCount > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
@@ -273,7 +275,7 @@ export function Header() {
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="rounded-full border-white/70 bg-white/76 shadow-sm">
+                    <Button variant="outline" size="icon" className="rounded-full border-white/70 bg-white/76 shadow-sm" aria-label={t('account')}>
                       <User className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>

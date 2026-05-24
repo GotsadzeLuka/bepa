@@ -1,11 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getSupabaseClientEnv } from '@/lib/supabase/config'
+import { getSupabaseClientEnv, hasSupabaseConfig } from '@/lib/supabase/config'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
+
+  if (!hasSupabaseConfig) {
+    return supabaseResponse
+  }
+
   const { supabaseUrl, supabasePublishableKey } = getSupabaseClientEnv()
 
   const supabase = createServerClient(

@@ -2,23 +2,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Calendar, Newspaper } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { newsService } from '@/lib/services'
 
 interface PageProps {
   params: Promise<{ slug: string }>
 }
 
 async function getNewsItem(slug: string) {
-  const supabase = await createClient()
-  
-  const { data } = await supabase
-    .from('news')
-    .select('*')
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .single()
-  
-  return data
+  return newsService.getNewsBySlug(slug)
 }
 
 export default async function NewsDetailPage({ params }: PageProps) {
@@ -45,8 +36,8 @@ export default async function NewsDetailPage({ params }: PageProps) {
         <header className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
             <Calendar className="h-4 w-4" />
-            <time dateTime={news.created_at}>
-              {new Date(news.created_at).toLocaleDateString('en-US', {
+            <time dateTime={news.createdAt.toISOString()}>
+              {news.createdAt.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -60,10 +51,10 @@ export default async function NewsDetailPage({ params }: PageProps) {
         </header>
 
         {/* Featured Image */}
-        {news.image_url ? (
+        {news.imageUrl ? (
           <div className="relative aspect-video rounded-lg overflow-hidden mb-8">
             <Image
-              src={news.image_url}
+              src={news.imageUrl}
               alt={news.title}
               fill
               className="object-cover"
@@ -79,9 +70,9 @@ export default async function NewsDetailPage({ params }: PageProps) {
         {/* Content */}
         <div className="prose prose-lg max-w-none">
           {news.content ? (
-            <div
-              dangerouslySetInnerHTML={{ __html: news.content.replace(/\n/g, '<br />') }}
-            />
+            news.content.split('\n').map((paragraph, index) => (
+              <p key={`${index}-${paragraph}`}>{paragraph}</p>
+            ))
           ) : (
             <p className="text-muted-foreground">No content available.</p>
           )}

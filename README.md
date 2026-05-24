@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BEPA Storefront
 
-## Getting Started
+BEPA is a Next.js auto-parts storefront with a customer catalog, cart, checkout, account pages, and a Supabase-backed admin area for products, categories, orders, and news.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router, React, TypeScript
+- Tailwind CSS and local shadcn-style UI components
+- Supabase Auth, Row Level Security, Storage, and PostgreSQL
+- Prisma ORM with the PostgreSQL adapter
+
+## Local Setup
+
+1. Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Create a local environment file:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Fill in the Supabase and database values in `.env.local`.
 
-## Learn More
+4. Generate Prisma client and run the app:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run db:generate
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment Variables
 
-## Deploy on Vercel
+`NEXT_PUBLIC_APP_URL` is the public app URL used for local and deployed links.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`BEPA_STOREFRONT_MODE` controls catalog behavior:
+- `demo`: use bundled demo catalog data.
+- `database`: require database-backed catalog data.
+- unset: try database first outside development, then fall back to demo data if catalog reads fail.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY` configure browser-safe Supabase access.
+
+`SUPABASE_SERVICE_ROLE_KEY` is server-only and must never be exposed in client code.
+
+`DATABASE_URL` is used by the app runtime. `DIRECT_URL` is used by Prisma migration and schema commands.
+
+## Database
+
+The Supabase SQL bootstrap is in `supabase/schema.sql`. The Prisma schema in `prisma/schema.prisma` mirrors the same tables and relationships.
+
+Useful commands:
+
+```bash
+npm run db:generate
+npm run db:push
+npm run db:migrate
+npm run db:studio
+```
+
+Create public Supabase Storage buckets named `products`, `categories`, and `news` before using image uploads in the admin area.
+
+## Quality Checks
+
+```bash
+npm run lint
+npm run build
+```
+
+The build script runs `prisma generate` before `next build`.

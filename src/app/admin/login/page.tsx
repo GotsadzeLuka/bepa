@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,7 +13,7 @@ import { Loader2, Shield } from 'lucide-react'
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = hasSupabaseConfig ? createClient() : null
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,6 +21,10 @@ export default function AdminLoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!supabase) {
+      toast.error('Supabase is not configured for admin authentication.')
+      return
+    }
     setLoading(true)
 
     try {

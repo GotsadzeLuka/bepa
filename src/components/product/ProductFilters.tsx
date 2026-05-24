@@ -27,7 +27,9 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
 
   const currentCategory = searchParams.get('category') || ''
   const currentSort = searchParams.get('sort') || 'newest'
-  const hasActiveFilters = Boolean(currentCategory || searchParams.get('sale') || searchParams.get('featured'))
+  const saleOnly = searchParams.get('sale') === 'true'
+  const featuredOnly = searchParams.get('featured') === 'true'
+  const hasActiveFilters = Boolean(currentCategory || saleOnly || featuredOnly || searchParams.get('search'))
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -37,6 +39,8 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
     } else {
       params.delete(key)
     }
+
+    params.delete('page')
 
     router.push(`${pathname}?${params.toString()}`)
   }
@@ -77,6 +81,34 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
             </div>
           </CollapsibleContent>
         </Collapsible>
+      </div>
+
+      <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+          {t('filters')}
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={saleOnly ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            aria-pressed={saleOnly}
+            onClick={() => updateFilter('sale', saleOnly ? '' : 'true')}
+          >
+            {t('sale')}
+          </Button>
+          <Button
+            type="button"
+            variant={featuredOnly ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            aria-pressed={featuredOnly}
+            onClick={() => updateFilter('featured', featuredOnly ? '' : 'true')}
+          >
+            {t('featured')}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm">

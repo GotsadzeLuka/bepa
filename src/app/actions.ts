@@ -3,7 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
-import { createReviewSchema, shippingAddressSchema } from '@/lib/validations'
+import {
+  createOrderSchema,
+  createReviewSchema,
+  updateProfileSchema,
+  uuidSchema,
+  wishlistItemSchema,
+} from '@/lib/validations'
 
 // =====================================================
 // PROFILE ACTIONS
@@ -24,20 +30,22 @@ export async function updateProfile(data: {
     throw new Error('Not authenticated')
   }
 
+  const validated = updateProfileSchema.parse(data)
+
   // Use upsert to create profile if it doesn't exist (handles new signups)
   const profile = await prisma.profile.upsert({
     where: { id: authUser.id },
     update: {
-      fullName: data.fullName,
-      phone: data.phone,
-      address: data.address,
+      fullName: validated.fullName,
+      phone: validated.phone,
+      address: validated.address,
     },
     create: {
       id: authUser.id,
       email: authUser.email,
-      fullName: data.fullName,
-      phone: data.phone,
-      address: data.address,
+      fullName: validated.fullName,
+      phone: validated.phone,
+      address: validated.address,
       role: 'user',
     },
   })
@@ -57,7 +65,7 @@ export async function getWishlist() {
   }
 
   return prisma.wishlist.findMany({
-    where: { profileId: authUser.id },
+    where: { userId: authUser.id },
     include: {
       product: {
         include: {
@@ -70,24 +78,20 @@ export async function getWishlist() {
 
 export async function addToWishlist(productId: string) {
   const authUser = await requireAuth()
+  const validated = wishlistItemSchema.parse({ productId })
 
-  // Check if already in wishlist
-  const existing = await prisma.wishlist.findFirst({
+  const item = await prisma.wishlist.upsert({
     where: {
-      profileId: authUser.id,
-      productId,
+      userId_productId: {
+        userId: authUser.id,
+        productId: validated.productId,
+      },
     },
-  })
-
-  if (existing) {
-    return existing
-  }
-
-  const item = await prisma.wishlist.create({
-    data: {
-      profileId: authUser.id,
-      productId,
+    create: {
+      userId: authUser.id,
+      productId: validated.productId,
     },
+    update: {},
   })
 
   revalidatePath('/wishlist')
@@ -96,11 +100,12 @@ export async function addToWishlist(productId: string) {
 
 export async function removeFromWishlist(productId: string) {
   const authUser = await requireAuth()
+  const validated = wishlistItemSchema.parse({ productId })
 
   await prisma.wishlist.deleteMany({
     where: {
-      profileId: authUser.id,
-      productId,
+      userId: authUser.id,
+      productId: validated.productId,
     },
   })
 
@@ -112,11 +117,12 @@ export async function isInWishlist(productId: string): Promise<boolean> {
   if (!authUser) {
     return false
   }
+  const validated = wishlistItemSchema.parse({ productId })
 
   const item = await prisma.wishlist.findFirst({
     where: {
-      profileId: authUser.id,
-      productId,
+      userId: authUser.id,
+      productId: validated.productId,
     },
   })
 
@@ -140,7 +146,7 @@ export async function createReview(data: {
   // Check if user already reviewed this product
   const existing = await prisma.review.findFirst({
     where: {
-      profileId: authUser.id,
+      userId: authUser.id,
       productId: validated.productId,
     },
   })
@@ -151,7 +157,7 @@ export async function createReview(data: {
 
   const review = await prisma.review.create({
     data: {
-      profileId: authUser.id,
+      userId: authUser.id,
       productId: validated.productId,
       rating: validated.rating,
       comment: validated.comment,
@@ -170,7 +176,7 @@ export async function getUserOrders() {
   const authUser = await requireAuth()
 
   return prisma.order.findMany({
-    where: { profileId: authUser.id },
+    where: { userId: authUser.id },
     orderBy: { createdAt: 'desc' },
     include: {
       items: {
@@ -189,63 +195,129 @@ export async function getUserOrders() {
 export async function createOrder(data: {
   items: Array<{
     productId: string
+    variantId?: string | null
     quantity: number
-    price: number
   }>
   shippingAddress: {
     firstName: string
     lastName: string
+    email: string
     address: string
     city: string
-    postalCode: string
+    postalCode?: string
     phone: string
   }
-  paymentMethod: string
+  notes?: string
 }) {
-  const authUser = await requireAuth()
+  const authUser = await getAuthUser()
+  const validated = createOrderSchema.parse(data)
+  const allIdsAreDatabaseIds = validated.items.every((item) => {
+    const productIdOk = uuidSchema.safeParse(item.productId).success
+    const variantIdOk = item.variantId ? uuidSchema.safeParse(item.variantId).success : true
+    return productIdOk && variantIdOk
+  })
 
-  // Validate shipping address
-  shippingAddressSchema.parse(data.shippingAddress)
+  if (!allIdsAreDatabaseIds) {
+    return {
+      id: crypto.randomUUID(),
+      status: 'pending' as const,
+      demo: true,
+    }
+  }
 
-  // Calculate totals
-  const subtotal = data.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const shippingCost = 0 // Free shipping or calculate based on rules
-  const total = subtotal + shippingCost
+  const products = await prisma.product.findMany({
+    where: {
+      id: { in: validated.items.map((item) => item.productId) },
+      isActive: true,
+    },
+    select: {
+      id: true,
+      price: true,
+      salePrice: true,
+      stock: true,
+    },
+  })
+
+  const variants = await prisma.productVariant.findMany({
+    where: {
+      id: {
+        in: validated.items
+          .map((item) => item.variantId)
+          .filter((variantId): variantId is string => Boolean(variantId)),
+      },
+      isActive: true,
+    },
+    select: {
+      id: true,
+      productId: true,
+      price: true,
+      stock: true,
+    },
+  })
+
+  const productsById = new Map(products.map((product) => [product.id, product]))
+  const variantsById = new Map(variants.map((variant) => [variant.id, variant]))
+  const pricedItems = validated.items.map((item) => {
+    const product = productsById.get(item.productId)
+    const variant = item.variantId ? variantsById.get(item.variantId) : null
+
+    if (!product || (item.variantId && !variant)) {
+      throw new Error('One or more products are unavailable.')
+    }
+
+    if (variant && variant.productId !== item.productId) {
+      throw new Error('Invalid product variant selected.')
+    }
+
+    const stock = variant?.stock ?? product.stock
+    if (stock < item.quantity) {
+      throw new Error('One or more products do not have enough stock.')
+    }
+
+    return {
+      ...item,
+      price: Number(variant?.price ?? product.salePrice ?? product.price),
+    }
+  })
+
+  const total = pricedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   // Create order with items in a transaction
-  const order = await prisma.$transaction(async (tx: typeof prisma) => {
+  const order = await prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
-        profileId: authUser.id,
+        userId: authUser?.id ?? null,
         status: 'pending',
-        subtotal,
-        shippingCost,
         total,
-        shippingAddress: data.shippingAddress,
-        paymentMethod: data.paymentMethod,
+        shippingAddress: validated.shippingAddress,
+        notes: validated.notes,
       },
     })
 
     // Create order items
     await tx.orderItem.createMany({
-      data: data.items.map((item) => ({
+      data: pricedItems.map((item) => ({
         orderId: order.id,
         productId: item.productId,
+        variantId: item.variantId,
         quantity: item.quantity,
         price: item.price,
       })),
     })
 
     // Update product stock
-    for (const item of data.items) {
-      await tx.product.update({
-        where: { id: item.productId },
-        data: {
-          stock: {
-            decrement: item.quantity,
-          },
-        },
-      })
+    for (const item of pricedItems) {
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { decrement: item.quantity } },
+        })
+      } else {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        })
+      }
     }
 
     return order

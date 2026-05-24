@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,13 +34,15 @@ import type { Category, Product, ProductImage, ProductVariant } from '@/types/da
 import Image from 'next/image'
 
 interface ProductWithRelations extends Product {
-  category: Category
+  category: Category | null
   images: ProductImage[]
   variants: ProductVariant[]
 }
 
+type VariantDraft = Pick<ProductVariant, 'name_en' | 'name_ka' | 'sku' | 'price' | 'stock' | 'is_active'>
+
 export default function ProductsPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [products, setProducts] = useState<ProductWithRelations[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,7 +51,7 @@ export default function ProductsPage() {
   const [formLoading, setFormLoading] = useState(false)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [existingImages, setExistingImages] = useState<ProductImage[]>([])
-  const [variants, setVariants] = useState<Omit<ProductVariant, 'id' | 'product_id' | 'created_at' | 'updated_at'>[]>([])
+  const [variants, setVariants] = useState<VariantDraft[]>([])
 
   const [formData, setFormData] = useState({
     category_id: '',
@@ -66,12 +68,7 @@ export default function ProductsPage() {
     is_featured: false,
   })
 
-  useEffect(() => {
-    fetchProducts()
-    fetchCategories()
-  }, [])
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -88,16 +85,21 @@ export default function ProductsPage() {
       setProducts((data as unknown as ProductWithRelations[]) || [])
     }
     setLoading(false)
-  }
+  }, [supabase])
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     const { data } = await supabase
       .from('categories')
       .select('*')
       .eq('is_active', true)
       .order('name_en')
     setCategories((data as unknown as Category[]) || [])
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    fetchProducts()
+    fetchCategories()
+  }, [fetchProducts, fetchCategories])
 
   const generateSlug = (name: string) => {
     return name
@@ -170,7 +172,7 @@ export default function ProductsPage() {
     setVariants(variants.filter((_, i) => i !== index))
   }
 
-  const updateVariant = (index: number, field: string, value: any) => {
+  const updateVariant = <K extends keyof VariantDraft>(index: number, field: K, value: VariantDraft[K]) => {
     setVariants(variants.map((v, i) => i === index ? { ...v, [field]: value } : v))
   }
 
@@ -243,8 +245,8 @@ export default function ProductsPage() {
       setDialogOpen(false)
       resetForm()
       fetchProducts()
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setFormLoading(false)
     }

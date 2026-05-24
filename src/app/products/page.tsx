@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { ProductCard } from '@/components/product/ProductCard'
 import { ProductFilters } from '@/components/product/ProductFilters'
 import { Button } from '@/components/ui/button'
+import { getCategoryName } from '@/lib/catalog'
 import { storefrontService } from '@/lib/storefront'
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 
 export default async function ProductsPage({ searchParams }: Props) {
   const t = await getTranslations('common')
+  const locale = await getLocale()
   const params = await searchParams
 
   const [categories, { products, pagination }] = await Promise.all([
@@ -39,8 +41,8 @@ export default async function ProductsPage({ searchParams }: Props) {
   if (params.category) {
     const category = categories.find((entry) => entry.slug === params.category)
     if (category) {
-      pageTitle = category.nameEn
-      pageCopy = category.descriptionEn ?? pageCopy
+      pageTitle = getCategoryName(category, locale)
+      pageCopy = (locale === 'ka' ? category.descriptionKa : category.descriptionEn) ?? pageCopy
     }
   }
 

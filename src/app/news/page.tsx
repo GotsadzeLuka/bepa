@@ -2,9 +2,10 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Newspaper, Calendar } from 'lucide-react'
+import type { News } from '@prisma/client'
 import { newsService } from '@/lib/services'
 
-function NewsGrid({ news }: { news: any[] }) {
+function NewsGrid({ news }: { news: News[] }) {
   if (news.length === 0) {
     return (
       <div className="text-center py-16">

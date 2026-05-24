@@ -2,12 +2,14 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { useTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Eye, Heart, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { addToWishlist } from '@/app/actions'
 import {
   getCategoryName,
   getDisplayPrice,
@@ -27,6 +29,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const t = useTranslations('common')
   const locale = useLocale()
   const addItem = useCartStore((state) => state.addItem)
+  const [wishlistPending, startWishlistTransition] = useTransition()
 
   const name = getProductName(product, locale)
   const categoryName = getCategoryName(product.category, locale)
@@ -47,6 +50,17 @@ export function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
     })
     toast.success(`${t('addToCart')} ✓`)
+  }
+
+  const handleAddToWishlist = () => {
+    startWishlistTransition(async () => {
+      try {
+        await addToWishlist(product.id)
+        toast.success(t('addToWishlist'))
+      } catch {
+        toast.error('Log in to save database catalog items to your wishlist.')
+      }
+    })
   }
 
   return (
@@ -88,6 +102,9 @@ export function ProductCard({ product }: ProductCardProps) {
             size="icon-sm"
             variant="secondary"
             className="rounded-full border border-white/25 bg-white/88 shadow-lg backdrop-blur hover:bg-white"
+            aria-label={t('addToWishlist')}
+            disabled={wishlistPending}
+            onClick={handleAddToWishlist}
           >
             <Heart className="h-4 w-4" />
           </Button>
@@ -96,6 +113,7 @@ export function ProductCard({ product }: ProductCardProps) {
               size="icon-sm"
               variant="secondary"
               className="rounded-full border border-white/25 bg-white/88 shadow-lg backdrop-blur hover:bg-white"
+              aria-label={t('viewDetails')}
             >
               <Eye className="h-4 w-4" />
             </Button>

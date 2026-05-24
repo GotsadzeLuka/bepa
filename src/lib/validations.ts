@@ -128,8 +128,8 @@ export const shippingAddressSchema = z.object({
 })
 
 export const orderItemSchema = z.object({
-  productId: uuidSchema,
-  variantId: uuidSchema.optional().nullable(),
+  productId: z.string().min(1, 'Product is required').max(200),
+  variantId: z.string().min(1).max(200).optional().nullable(),
   quantity: z.coerce.number().int().positive().max(100),
 })
 

@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { User, Package, Heart, LogOut, Settings } from 'lucide-react'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { cn } from '@/lib/utils'
 
 const accountLinks = [
@@ -22,15 +24,16 @@ export default function AccountLayout({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
+  const supabase = useMemo(() => hasSupabaseConfig ? createClient() : null, [])
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
+  const checkAuth = useCallback(async () => {
+    if (!supabase) {
+      router.push('/login')
+      return
+    }
 
-  const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -40,10 +43,14 @@ export default function AccountLayout({
 
     setUser(user)
     setLoading(false)
-  }
+  }, [router, supabase])
+
+  useEffect(() => {
+    void Promise.resolve().then(checkAuth)
+  }, [checkAuth])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await supabase?.auth.signOut()
     router.push('/')
     router.refresh()
   }

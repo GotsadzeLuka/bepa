@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
+import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -10,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Globe } from 'lucide-react'
+import { setLocaleCookie } from '@/app/locale-actions'
 
 const languages = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
@@ -19,10 +21,13 @@ const languages = [
 export function LanguageSwitcher() {
   const locale = useLocale()
   const router = useRouter()
+  const [pending, startTransition] = useTransition()
 
   const handleLanguageChange = (langCode: string) => {
-    document.cookie = `locale=${langCode};path=/;max-age=31536000`
-    router.refresh()
+    startTransition(async () => {
+      await setLocaleCookie(langCode)
+      router.refresh()
+    })
   }
 
   const currentLang = languages.find((l) => l.code === locale) || languages[0]
@@ -30,7 +35,7 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
+        <Button variant="ghost" size="sm" className="gap-2" disabled={pending}>
           <Globe className="h-4 w-4" />
           <span className="hidden sm:inline">{currentLang.flag} {currentLang.name}</span>
           <span className="sm:hidden">{currentLang.flag}</span>

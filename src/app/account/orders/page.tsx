@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Package, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react'
@@ -15,10 +15,19 @@ interface OrderItem {
   price: number
   product: {
     id: string
-    name: string
+    name_en: string
     slug: string
     images: { url: string; is_primary: boolean }[]
   }
+}
+
+interface ShippingAddress {
+  firstName?: string
+  lastName?: string
+  phone?: string
+  address?: string
+  city?: string
+  postalCode?: string
 }
 
 interface Order {
@@ -26,7 +35,7 @@ interface Order {
   status: string
   total: number
   created_at: string
-  shipping_address: any
+  shipping_address: ShippingAddress | null
   items: OrderItem[]
 }
 
@@ -40,16 +49,12 @@ const statusColors: Record<string, string> = {
 }
 
 export default function OrdersPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadOrders()
-  }, [])
-
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -68,7 +73,7 @@ export default function OrdersPage() {
             price,
             product:products (
               id,
-              name,
+              name_en,
               slug,
               images:product_images (url, is_primary)
             )
@@ -84,7 +89,11 @@ export default function OrdersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    loadOrders()
+  }, [loadOrders])
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -115,7 +124,7 @@ export default function OrdersPage() {
         <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold mb-2">No Orders Yet</h2>
         <p className="text-muted-foreground mb-8">
-          You haven't placed any orders yet. Start shopping!
+          You haven&apos;t placed any orders yet. Start shopping!
         </p>
         <Link href="/products">
           <Button>Browse Products</Button>
@@ -190,7 +199,7 @@ export default function OrdersPage() {
                               {primaryImage ? (
                                 <Image
                                   src={primaryImage}
-                                  alt={product?.name || 'Product'}
+                                  alt={product?.name_en || 'Product'}
                                   fill
                                   className="object-cover"
                                 />
@@ -206,7 +215,7 @@ export default function OrdersPage() {
                                   href={`/product/${product.slug}`}
                                   className="font-medium hover:text-primary"
                                 >
-                                  {product.name}
+                                  {product.name_en}
                                 </Link>
                               ) : (
                                 <p className="font-medium text-muted-foreground">

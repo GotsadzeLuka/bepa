@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
@@ -38,7 +39,7 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = hasSupabaseConfig ? createClient() : null
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Don't show layout on login page
@@ -47,7 +48,7 @@ export default function AdminLayout({
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await supabase?.auth.signOut()
     router.push('/admin/login')
   }
 

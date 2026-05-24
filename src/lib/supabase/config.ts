@@ -4,7 +4,15 @@ const supabasePublishableKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
   ''
 
-export const hasSupabaseConfig = Boolean(supabaseUrl && supabasePublishableKey)
+const hasRealSupabaseUrl =
+  supabaseUrl.startsWith('https://') &&
+  !supabaseUrl.includes('your-project-ref')
+
+const hasRealSupabaseKey =
+  Boolean(supabasePublishableKey) &&
+  !supabasePublishableKey.startsWith('your-')
+
+export const hasSupabaseConfig = Boolean(hasRealSupabaseUrl && hasRealSupabaseKey)
 
 export function getSupabaseClientEnv() {
   if (!hasSupabaseConfig) {

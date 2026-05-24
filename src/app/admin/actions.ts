@@ -7,7 +7,11 @@ import {
   createProductSchema, 
   updateProductSchema, 
   createCategorySchema,
-  createNewsSchema
+  updateCategorySchema,
+  createNewsSchema,
+  updateNewsSchema,
+  updateOrderStatusSchema,
+  uuidSchema,
 } from '@/lib/validations'
 
 // =====================================================
@@ -75,12 +79,13 @@ export async function updateProduct(
   }
 ) {
   await requireAdmin()
+  const productId = uuidSchema.parse(id)
   
   // Validate input
   const validated = updateProductSchema.parse(data)
   
   const product = await prisma.product.update({
-    where: { id },
+    where: { id: productId },
     data: validated,
   })
   
@@ -94,12 +99,13 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string) {
   await requireAdmin()
+  const productId = uuidSchema.parse(id)
   
   // Delete related records first (cascade would handle this normally)
-  await prisma.productImage.deleteMany({ where: { productId: id } })
-  await prisma.productVariant.deleteMany({ where: { productId: id } })
+  await prisma.productImage.deleteMany({ where: { productId } })
+  await prisma.productVariant.deleteMany({ where: { productId } })
   
-  await prisma.product.delete({ where: { id } })
+  await prisma.product.delete({ where: { id: productId } })
   
   revalidatePath('/admin/products')
   revalidatePath('/products')
@@ -114,9 +120,13 @@ export async function createProductImage(data: {
   sortOrder?: number
 }) {
   await requireAdmin()
+  const productId = uuidSchema.parse(data.productId)
   
   const image = await prisma.productImage.create({
-    data,
+    data: {
+      ...data,
+      productId,
+    },
   })
   
   revalidatePath('/admin/products')
@@ -126,8 +136,9 @@ export async function createProductImage(data: {
 
 export async function deleteProductImage(id: string) {
   await requireAdmin()
+  const imageId = uuidSchema.parse(id)
   
-  await prisma.productImage.delete({ where: { id } })
+  await prisma.productImage.delete({ where: { id: imageId } })
   
   revalidatePath('/admin/products')
 }
@@ -138,23 +149,28 @@ export async function syncProductVariants(
   variants: Array<{
     nameEn: string
     nameKa: string
-    value: string
-    priceAdjustment?: number
-    stockAdjustment?: number
+    sku?: string | null
+    price: number
+    stock: number
+    isActive?: boolean
   }>
 ) {
   await requireAdmin()
+  const validatedProductId = uuidSchema.parse(productId)
   
   // Delete all existing variants and create new ones
-  await prisma.productVariant.deleteMany({ where: { productId } })
+  await prisma.productVariant.deleteMany({ where: { productId: validatedProductId } })
   
   if (variants.length > 0) {
     await prisma.productVariant.createMany({
       data: variants.map(v => ({
-        ...v,
-        productId,
-        priceAdjustment: v.priceAdjustment ?? 0,
-        stockAdjustment: v.stockAdjustment ?? 0,
+        productId: validatedProductId,
+        nameEn: v.nameEn,
+        nameKa: v.nameKa,
+        sku: v.sku,
+        price: v.price,
+        stock: v.stock,
+        isActive: v.isActive ?? true,
       })),
     })
   }
@@ -214,10 +230,12 @@ export async function updateCategory(
   }
 ) {
   await requireAdmin()
+  const categoryId = uuidSchema.parse(id)
+  const validated = updateCategorySchema.parse(data)
   
   const category = await prisma.category.update({
-    where: { id },
-    data,
+    where: { id: categoryId },
+    data: validated,
   })
   
   revalidatePath('/admin/categories')
@@ -229,8 +247,9 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string) {
   await requireAdmin()
+  const categoryId = uuidSchema.parse(id)
   
-  await prisma.category.delete({ where: { id } })
+  await prisma.category.delete({ where: { id: categoryId } })
   
   revalidatePath('/admin/categories')
   revalidatePath('/products')
@@ -284,10 +303,12 @@ export async function updateNews(
   }
 ) {
   await requireAdmin()
+  const newsId = uuidSchema.parse(id)
+  const validated = updateNewsSchema.parse(data)
   
   const news = await prisma.news.update({
-    where: { id },
-    data,
+    where: { id: newsId },
+    data: validated,
   })
   
   revalidatePath('/admin/news')
@@ -299,8 +320,9 @@ export async function updateNews(
 
 export async function deleteNews(id: string) {
   await requireAdmin()
+  const newsId = uuidSchema.parse(id)
   
-  await prisma.news.delete({ where: { id } })
+  await prisma.news.delete({ where: { id: newsId } })
   
   revalidatePath('/admin/news')
   revalidatePath('/news')
@@ -321,17 +343,19 @@ export async function getOrdersAdmin() {
           product: true,
         },
       },
-      profile: true,
+      user: true,
     },
   })
 }
 
-export async function updateOrderStatus(id: string, status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled') {
+export async function updateOrderStatus(id: string, status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled') {
   await requireAdmin()
+  const orderId = uuidSchema.parse(id)
+  const validated = updateOrderStatusSchema.parse({ status })
   
   const order = await prisma.order.update({
-    where: { id },
-    data: { status },
+    where: { id: orderId },
+    data: { status: validated.status },
   })
   
   revalidatePath('/admin/orders')
@@ -350,16 +374,17 @@ export async function getReviewsAdmin() {
     orderBy: { createdAt: 'desc' },
     include: {
       product: true,
-      profile: true,
+      user: true,
     },
   })
 }
 
 export async function approveReview(id: string) {
   await requireAdmin()
+  const reviewId = uuidSchema.parse(id)
   
   await prisma.review.update({
-    where: { id },
+    where: { id: reviewId },
     data: { isApproved: true },
   })
   
@@ -368,8 +393,9 @@ export async function approveReview(id: string) {
 
 export async function deleteReview(id: string) {
   await requireAdmin()
+  const reviewId = uuidSchema.parse(id)
   
-  await prisma.review.delete({ where: { id } })
+  await prisma.review.delete({ where: { id: reviewId } })
   
   revalidatePath('/admin/reviews')
 }

@@ -1,346 +1,367 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { ShoppingBag, CheckCircle2, ArrowLeft } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, ShoppingBag, ShieldCheck } from 'lucide-react'
+import { toast } from 'sonner'
+import { createOrder } from '@/app/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useCartStore } from '@/store/cart'
-import { createClient } from '@/lib/supabase/client'
-import { toast } from 'sonner'
+
+const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city'] as const
+
+type CheckoutField = typeof requiredFields[number] | 'postalCode' | 'notes'
+
+type CheckoutForm = Record<CheckoutField, string>
+
+const initialFormData: CheckoutForm = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  postalCode: '',
+  notes: '',
+}
+
+function validateCheckoutForm(formData: CheckoutForm) {
+  const errors: Partial<Record<CheckoutField, string>> = {}
+
+  for (const field of requiredFields) {
+    if (!formData[field].trim()) {
+      errors[field] = 'Required'
+    }
+  }
+
+  if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    errors.email = 'Enter a valid email'
+  }
+
+  if (formData.phone && formData.phone.trim().length < 9) {
+    errors.phone = 'Enter a valid phone number'
+  }
+
+  return errors
+}
 
 export default function CheckoutPage() {
   const t = useTranslations('common')
-  const supabase = createClient()
   const { items, getTotal, clearCart, hasHydrated } = useCartStore()
   const [loading, setLoading] = useState(false)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [orderId, setOrderId] = useState<string | null>(null)
+  const [formData, setFormData] = useState<CheckoutForm>(initialFormData)
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<CheckoutField, string>>>({})
+  const total = getTotal()
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    postalCode: '',
-    notes: '',
-  })
+  const orderLines = useMemo(
+    () =>
+      items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId ?? null,
+        quantity: item.quantity,
+      })),
+    [items]
+  )
 
   if (!hasHydrated) {
-    return <div className="container py-10 sm:py-16 px-6" />
+    return (
+      <div className="container py-10 sm:py-14">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
+          <Skeleton className="h-[34rem] rounded-[2rem] bg-white/60" />
+          <Skeleton className="h-96 rounded-[2rem] bg-white/60" />
+        </div>
+      </div>
+    )
   }
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target
+    const { name, value } = event.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     
     if (items.length === 0) {
       toast.error('Your cart is empty')
       return
     }
 
-    // Validate required fields
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.address || !formData.city) {
-      toast.error('Please fill in all required fields')
+    const errors = validateCheckoutForm(formData)
+    setFieldErrors(errors)
+
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please review the highlighted fields')
       return
     }
 
     setLoading(true)
 
     try {
-      // Get current user (optional)
-      const { data: { user } } = await supabase.auth.getUser()
+      const order = await createOrder({
+        items: orderLines,
+        shippingAddress: {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          postalCode: formData.postalCode.trim() || undefined,
+        },
+        notes: formData.notes.trim() || undefined,
+      })
 
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user?.id || null,
-          status: 'pending',
-          total: getTotal(),
-          shipping_address: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            address: formData.address,
-            city: formData.city,
-            postalCode: formData.postalCode,
-          },
-          notes: formData.notes || null,
-        })
-        .select()
-        .single()
-
-      if (orderError) throw orderError
-
-      // Create order items
-      const orderItems = items.map((item) => ({
-        order_id: order.id,
-        product_id: item.productId,
-        variant_id: item.variantId || null,
-        quantity: item.quantity,
-        price: item.price,
-      }))
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems)
-
-      if (itemsError) throw itemsError
-
-      // Success
       setOrderId(order.id)
       setOrderPlaced(true)
       clearCart()
-      toast.success('Order placed successfully!')
+      toast.success('Order placed successfully')
     } catch (error) {
       console.error('Error placing order:', error)
-      toast.error('Failed to place order. Please try again.')
+      toast.error(error instanceof Error ? error.message : 'Failed to place order. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Order success screen
   if (orderPlaced) {
     return (
-      <div className="container py-10 sm:py-16 text-center max-w-lg mx-auto px-6">
-        <CheckCircle2 className="h-14 w-14 sm:h-20 sm:w-20 mx-auto text-green-500 mb-4 sm:mb-6" />
-        <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4">Order Placed!</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mb-2">
-          Thank you for your order. We&apos;ll contact you shortly to confirm the details.
-        </p>
-        {orderId && (
-          <p className="text-xs sm:text-sm text-muted-foreground mb-6 sm:mb-8">
-            Order ID: <span className="font-mono">{orderId.slice(0, 8).toUpperCase()}</span>
+      <div className="container py-12 sm:py-16">
+        <section className="mx-auto max-w-2xl rounded-[2rem] border border-white/70 bg-white/86 p-8 text-center shadow-[0_24px_72px_-46px_rgba(15,23,42,0.5)] backdrop-blur-xl sm:p-10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500 text-white">
+            <CheckCircle2 className="h-9 w-9" />
+          </div>
+          <h1 className="font-display text-3xl font-black tracking-tight text-slate-950">
+            Order placed
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500 sm:text-base">
+            Thank you for your order. We will contact you shortly to confirm availability and delivery.
           </p>
-        )}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-          <Link href="/products">
-            <Button variant="outline" className="w-full sm:w-auto">{t('continueShopping')}</Button>
-          </Link>
-          <Link href="/">
-            <Button className="w-full sm:w-auto">Go Home</Button>
-          </Link>
-        </div>
+          {orderId && (
+            <p className="mt-5 text-sm text-slate-500">
+              Order ID <span className="font-mono font-semibold text-slate-800">{orderId.slice(0, 8).toUpperCase()}</span>
+            </p>
+          )}
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Button asChild variant="outline" className="rounded-full border-white/80 bg-white/76">
+              <Link href="/products">{t('continueShopping')}</Link>
+            </Button>
+            <Button asChild className="rounded-full">
+              <Link href="/">Go home</Link>
+            </Button>
+          </div>
+        </section>
       </div>
     )
   }
 
-  // Redirect if cart is empty
   if (items.length === 0) {
     return (
-      <div className="container py-10 sm:py-16 text-center px-6">
-        <ShoppingBag className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground mb-4" />
-        <h1 className="text-xl sm:text-2xl font-bold mb-2">Your cart is empty</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">Add some products before checking out.</p>
-        <Link href="/products">
-          <Button size="lg">{t('continueShopping')}</Button>
-        </Link>
+      <div className="container py-12 sm:py-16">
+        <section className="mx-auto max-w-2xl rounded-[2rem] border border-white/70 bg-white/86 p-8 text-center shadow-[0_24px_72px_-46px_rgba(15,23,42,0.5)] backdrop-blur-xl sm:p-10">
+          <ShoppingBag className="mx-auto mb-4 h-14 w-14 text-slate-400" />
+          <h1 className="font-display text-3xl font-black tracking-tight text-slate-950">
+            Your cart is empty
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">
+            Add products before starting checkout.
+          </p>
+          <Button asChild size="lg" className="mt-7 rounded-full">
+            <Link href="/products">{t('continueShopping')}</Link>
+          </Button>
+        </section>
       </div>
     )
   }
 
+  const fieldProps = (field: CheckoutField) => ({
+    'aria-invalid': Boolean(fieldErrors[field]),
+    'aria-describedby': fieldErrors[field] ? `${field}-error` : undefined,
+  })
+
   return (
-    <div className="container py-4 sm:py-6 md:py-8">
-      <Link 
-        href="/cart" 
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 sm:mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Cart
-      </Link>
+    <div className="container py-8 sm:py-10 lg:py-12">
+      <Button asChild variant="ghost" className="mb-5 rounded-full">
+        <Link href="/cart">
+          <ArrowLeft className="h-4 w-4" />
+          Back to cart
+        </Link>
+      </Button>
 
-      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 md:mb-8">{t('checkout')}</h1>
+      <div className="mb-7">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+          Secure checkout
+        </p>
+        <h1 className="mt-2 font-display text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+          {t('checkout')}
+        </h1>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {/* Checkout Form */}
-          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
-            {/* Contact Information */}
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Contact Information</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone *</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                  />
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+          <section className="space-y-5">
+            <div className="rounded-[2rem] border border-white/70 bg-white/86 p-5 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl sm:p-6">
+              <h2 className="font-display text-2xl font-black tracking-tight text-slate-950">
+                Contact information
+              </h2>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <Field label="First name" name="firstName" value={formData.firstName} error={fieldErrors.firstName}>
+                  <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('firstName')} />
+                </Field>
+                <Field label="Last name" name="lastName" value={formData.lastName} error={fieldErrors.lastName}>
+                  <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('lastName')} />
+                </Field>
+                <Field label="Email" name="email" value={formData.email} error={fieldErrors.email}>
+                  <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('email')} />
+                </Field>
+                <Field label="Phone" name="phone" value={formData.phone} error={fieldErrors.phone}>
+                  <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('phone')} />
+                </Field>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/70 bg-white/86 p-5 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl sm:p-6">
+              <h2 className="font-display text-2xl font-black tracking-tight text-slate-950">
+                Delivery address
+              </h2>
+              <div className="mt-5 grid gap-4">
+                <Field label="Address" name="address" value={formData.address} error={fieldErrors.address}>
+                  <Input id="address" name="address" value={formData.address} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('address')} />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="City" name="city" value={formData.city} error={fieldErrors.city}>
+                    <Input id="city" name="city" value={formData.city} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('city')} />
+                  </Field>
+                  <Field label="Postal code" name="postalCode" value={formData.postalCode} error={fieldErrors.postalCode} optional>
+                    <Input id="postalCode" name="postalCode" value={formData.postalCode} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('postalCode')} />
+                  </Field>
                 </div>
               </div>
             </div>
 
-            {/* Shipping Address */}
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Shipping Address</h2>
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <Label htmlFor="address">Address *</Label>
-                  <Input
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      required
-                    />
+            <div className="rounded-[2rem] border border-white/70 bg-white/86 p-5 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl sm:p-6">
+              <Field label="Order notes" name="notes" value={formData.notes} error={fieldErrors.notes} optional>
+                <Textarea
+                  id="notes"
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  placeholder="Delivery instructions, preferred contact time, or vehicle fitment notes"
+                  rows={4}
+                  className="rounded-xl bg-white"
+                  {...fieldProps('notes')}
+                />
+              </Field>
+            </div>
+          </section>
+
+          <aside className="rounded-[2rem] border border-white/70 bg-white/88 p-5 shadow-[0_24px_72px_-46px_rgba(15,23,42,0.52)] backdrop-blur-xl lg:sticky lg:top-36">
+            <h2 className="font-display text-2xl font-black tracking-tight text-slate-950">
+              Your order
+            </h2>
+
+            <div className="mt-5 max-h-[20rem] space-y-3 overflow-y-auto pr-1">
+              {items.map((item) => (
+                <div key={item.id} className="flex gap-3">
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                    {item.image ? (
+                      <Image src={item.image} alt={item.name} fill className="object-cover" sizes="64px" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-slate-300">
+                        <ShoppingBag className="h-6 w-6" />
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <Label htmlFor="postalCode">Postal Code</Label>
-                    <Input
-                      id="postalCode"
-                      name="postalCode"
-                      value={formData.postalCode}
-                      onChange={handleInputChange}
-                    />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-semibold text-slate-950">{item.name}</p>
+                    {item.variantName && <p className="mt-0.5 text-xs text-slate-500">{item.variantName}</p>}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {item.quantity} x ₾{item.price}
+                    </p>
                   </div>
+                  <p className="text-sm font-semibold text-slate-950">
+                    ₾{(item.quantity * item.price).toFixed(2)}
+                  </p>
                 </div>
+              ))}
+            </div>
+
+            <Separator className="my-5" />
+
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500">{t('subtotal')}</span>
+                <span className="font-semibold text-slate-950">₾{total.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Delivery</span>
+                <span className="font-semibold text-emerald-600">Free</span>
               </div>
             </div>
 
-            {/* Order Notes */}
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Order Notes (Optional)</h2>
-              <Textarea
-                id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                placeholder="Any special instructions for your order..."
-                rows={3}
-              />
+            <Separator className="my-5" />
+
+            <div className="flex items-end justify-between">
+              <span className="text-sm font-medium text-slate-500">{t('total')}</span>
+              <span className="text-3xl font-black tracking-tight text-slate-950">₾{total.toFixed(2)}</span>
             </div>
-          </div>
 
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-zinc-50 rounded-lg p-4 sm:p-6 lg:sticky lg:top-24">
-              <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Your Order</h2>
+            <Button type="submit" size="lg" className="mt-6 w-full rounded-full" disabled={loading}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? 'Placing order...' : 'Place order'}
+            </Button>
 
-              <div className="space-y-3 sm:space-y-4 max-h-[200px] sm:max-h-[300px] overflow-y-auto">
-                {items.map((item) => (
-                  <div key={item.id} className="flex gap-2 sm:gap-3">
-                    <div className="relative h-12 w-12 sm:h-16 sm:w-16 rounded-lg overflow-hidden bg-white shrink-0">
-                      {item.image ? (
-                        <Image src={item.image} alt={item.name} fill className="object-cover" />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-zinc-300">
-                          <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-xs sm:text-sm line-clamp-2">{item.name}</p>
-                      {item.variantName && (
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">{item.variantName}</p>
-                      )}
-                      <p className="text-xs sm:text-sm">
-                        {item.quantity} x ₾{item.price}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-xs sm:text-sm">₾{(item.quantity * item.price).toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Separator className="my-3 sm:my-4" />
-
-              <div className="space-y-2 sm:space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t('subtotal')}</span>
-                  <span>₾{getTotal().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Delivery</span>
-                  <span className="text-green-600">Free</span>
-                </div>
-              </div>
-
-              <Separator className="my-3 sm:my-4" />
-
-              <div className="flex justify-between text-base sm:text-lg font-bold mb-4 sm:mb-6">
-                <span>{t('total')}</span>
-                <span>₾{getTotal().toFixed(2)}</span>
-              </div>
-
-              <Button 
-                type="submit" 
-                className="w-full" 
-                size="lg"
-                disabled={loading}
-              >
-                {loading ? 'Placing Order...' : 'Place Order'}
-              </Button>
-
-              <p className="text-[10px] sm:text-xs text-muted-foreground text-center mt-3 sm:mt-4">
-                By placing this order, you agree to our terms and conditions.
-              </p>
+            <div className="mt-5 flex gap-3 rounded-[1.25rem] bg-slate-50 p-4 text-sm leading-6 text-slate-500">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>Your order is validated on the server before it is stored.</span>
             </div>
-          </div>
+          </aside>
         </div>
       </form>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  name,
+  error,
+  optional,
+  children,
+}: {
+  label: string
+  name: CheckoutField
+  value: string
+  error?: string
+  optional?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={name} className="text-sm font-semibold text-slate-700">
+          {label}
+        </Label>
+        {optional && <span className="text-xs text-slate-400">Optional</span>}
+      </div>
+      {children}
+      {error && (
+        <p id={`${name}-error`} className="text-xs font-medium text-rose-600">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

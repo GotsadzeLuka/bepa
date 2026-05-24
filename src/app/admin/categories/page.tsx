@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getCategoriesAdmin, createCategory, updateCategory, deleteCategory } from '@/app/admin/actions'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,7 @@ import type { Category } from '@/types/database'
 import Image from 'next/image'
 
 export default function CategoriesPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -46,11 +46,7 @@ export default function CategoriesPage() {
     sortOrder: 0,
   })
 
-  useEffect(() => {
-    fetchCategories()
-  }, [])
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const data = await getCategoriesAdmin()
       setCategories(data as unknown as Category[])
@@ -58,7 +54,11 @@ export default function CategoriesPage() {
       toast.error('Failed to fetch categories')
     }
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
 
   const generateSlug = (name: string) => {
     return name
@@ -149,8 +149,8 @@ export default function CategoriesPage() {
       setDialogOpen(false)
       resetForm()
       fetchCategories()
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setFormLoading(false)
     }

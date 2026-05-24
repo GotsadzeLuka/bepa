@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Plus, Pencil, Trash2, Newspaper, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,7 +39,7 @@ interface NewsItem {
 }
 
 export default function AdminNewsPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -54,11 +54,7 @@ export default function AdminNewsPage() {
     is_published: true,
   })
 
-  useEffect(() => {
-    fetchNews()
-  }, [])
-
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async () => {
     const { data, error } = await supabase
       .from('news')
       .select('*')
@@ -71,7 +67,11 @@ export default function AdminNewsPage() {
       setNews(data || [])
     }
     setLoading(false)
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    fetchNews()
+  }, [fetchNews])
 
   const generateSlug = (title: string) => {
     return title
@@ -158,9 +158,9 @@ export default function AdminNewsPage() {
       setDialogOpen(false)
       resetForm()
       fetchNews()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving news:', error)
-      toast.error(error.message || 'Failed to save news')
+      toast.error(error instanceof Error ? error.message : 'Failed to save news')
     }
   }
 

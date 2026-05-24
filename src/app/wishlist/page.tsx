@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { Heart, ShoppingBag, Trash2, ShoppingCart } from 'lucide-react'
+import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/store/cart'
@@ -14,7 +15,7 @@ interface WishlistItem {
   id: string
   product: {
     id: string
-    name: string
+    name_en: string
     slug: string
     price: number
     sale_price: number | null
@@ -24,28 +25,13 @@ interface WishlistItem {
 
 export default function WishlistPage() {
   const t = useTranslations('common')
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const addToCart = useCartStore((state) => state.addItem)
   const [items, setItems] = useState<WishlistItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    setUser(user)
-    
-    if (user) {
-      fetchWishlist(user.id)
-    } else {
-      setLoading(false)
-    }
-  }
-
-  const fetchWishlist = async (userId: string) => {
+  const fetchWishlist = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('wishlist')
@@ -53,7 +39,7 @@ export default function WishlistPage() {
           id,
           product:products (
             id,
-            name,
+            name_en,
             slug,
             price,
             sale_price,
@@ -70,7 +56,22 @@ export default function WishlistPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  const checkAuth = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+    
+    if (user) {
+      fetchWishlist(user.id)
+    } else {
+      setLoading(false)
+    }
+  }, [fetchWishlist, supabase])
+
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
 
   const removeFromWishlist = async (id: string) => {
     try {
@@ -91,11 +92,11 @@ export default function WishlistPage() {
 
   const handleAddToCart = (item: WishlistItem) => {
     const product = item.product
-    const primaryImage = product.images?.find((img: any) => img.is_primary)?.url || product.images?.[0]?.url
+    const primaryImage = product.images?.find((img) => img.is_primary)?.url || product.images?.[0]?.url
 
     addToCart({
       productId: product.id,
-      name: product.name,
+      name: product.name_en,
       price: product.sale_price || product.price,
       quantity: 1,
       image: primaryImage || undefined,
@@ -167,7 +168,7 @@ export default function WishlistPage() {
                 {primaryImage ? (
                   <Image
                     src={primaryImage}
-                    alt={product.name}
+                    alt={product.name_en}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
@@ -188,7 +189,7 @@ export default function WishlistPage() {
               <div className="p-4">
                 <Link href={`/product/${product.slug}`}>
                   <h3 className="font-medium line-clamp-2 hover:text-primary mb-2">
-                    {product.name}
+                    {product.name_en}
                   </h3>
                 </Link>
 

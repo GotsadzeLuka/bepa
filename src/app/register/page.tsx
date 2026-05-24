@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { updateProfile } from '@/app/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,7 @@ import { Loader2 } from 'lucide-react'
 export default function RegisterPage() {
   const t = useTranslations('auth')
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = hasSupabaseConfig ? createClient() : null
 
   const [formData, setFormData] = useState({
     email: '',
@@ -37,8 +38,18 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!supabase) {
+      toast.error('Supabase is not configured for authentication.')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       toast.error(t('passwordMismatch'))
+      return
+    }
+
+    if (!/[A-Z]/.test(formData.password) || !/[a-z]/.test(formData.password) || !/[0-9]/.test(formData.password)) {
+      toast.error('Password must include uppercase, lowercase, and a number.')
       return
     }
 
@@ -93,10 +104,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="container flex items-center justify-center min-h-[80vh] py-8">
-      <Card className="w-full max-w-md">
+    <div className="container flex min-h-[80vh] items-center justify-center py-10">
+      <Card className="w-full max-w-md rounded-[2rem] border-white/70 bg-white/88 shadow-[0_24px_72px_-46px_rgba(15,23,42,0.5)] backdrop-blur-xl">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
+          <CardTitle className="text-center font-display text-3xl font-black tracking-tight text-slate-950">
             {t('registerTitle')}
           </CardTitle>
           <CardDescription className="text-center">
@@ -112,8 +123,10 @@ export default function RegisterPage() {
                 name="fullName"
                 type="text"
                 placeholder="John Doe"
+                autoComplete="name"
                 value={formData.fullName}
                 onChange={handleChange}
+                className="h-11 rounded-xl bg-white"
                 required
               />
             </div>
@@ -124,8 +137,10 @@ export default function RegisterPage() {
                 name="email"
                 type="email"
                 placeholder="name@example.com"
+                autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
+                className="h-11 rounded-xl bg-white"
                 required
               />
             </div>
@@ -136,8 +151,10 @@ export default function RegisterPage() {
                 name="phone"
                 type="tel"
                 placeholder="+995 XXX XXX XXX"
+                autoComplete="tel"
                 value={formData.phone}
                 onChange={handleChange}
+                className="h-11 rounded-xl bg-white"
               />
             </div>
             <div className="space-y-2">
@@ -146,11 +163,16 @@ export default function RegisterPage() {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={handleChange}
+                className="h-11 rounded-xl bg-white"
                 required
-                minLength={6}
+                minLength={8}
               />
+              <p className="text-xs leading-5 text-muted-foreground">
+                Use at least 8 characters with uppercase, lowercase, and a number.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">{t('confirmPassword')}</Label>
@@ -158,15 +180,17 @@ export default function RegisterPage() {
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
+                className="h-11 rounded-xl bg-white"
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full rounded-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('registerButton')}
             </Button>

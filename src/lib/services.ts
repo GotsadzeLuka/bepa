@@ -11,6 +11,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import type { OrderStatus, Prisma } from '@prisma/client'
 import type {
   ProductFilterInput,
   CreateProductInput,
@@ -19,7 +20,11 @@ import type {
   UpdateCategoryInput,
   CreateOrderInput,
   CreateReviewInput,
+  CreateNewsInput,
+  UpdateNewsInput,
 } from '@/lib/validations'
+
+const isNextProductionBuild = process.env.NEXT_PHASE === 'phase-production-build'
 
 // =====================================================
 // PRODUCT QUERIES
@@ -33,8 +38,7 @@ export const productService = {
     const { category, search, featured, sale, minPrice, maxPrice, sort, page, limit } = filters
     const skip = (page - 1) * limit
 
-    // Build where clause (types will be inferred from Prisma after generation)
-    const where: any = {
+    const where: Prisma.ProductWhereInput = {
       isActive: true,
     }
 
@@ -65,7 +69,7 @@ export const productService = {
     }
 
     // Build orderBy clause
-    let orderBy: any = { createdAt: 'desc' }
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' }
     
     switch (sort) {
       case 'price-asc':
@@ -108,7 +112,7 @@ export const productService = {
    * Get a single product by slug.
    */
   async getProductBySlug(slug: string) {
-    return prisma.product.findUnique({
+    return prisma.product.findFirst({
       where: { slug, isActive: true },
       include: {
         category: true,
@@ -372,7 +376,7 @@ export const orderService = {
     }
 
     // Use transaction for atomic order creation
-    return prisma.$transaction(async (tx: typeof prisma) => {
+    return prisma.$transaction(async (tx) => {
       // Create order
       const order = await tx.order.create({
         data: {
@@ -420,7 +424,7 @@ export const orderService = {
   async updateOrderStatus(id: string, status: string) {
     return prisma.order.update({
       where: { id },
-      data: { status: status as any },
+      data: { status: status as OrderStatus },
     })
   },
 }
@@ -553,10 +557,22 @@ export const newsService = {
    * Get published news.
    */
   async getPublishedNews() {
-    return prisma.news.findMany({
-      where: { isPublished: true },
-      orderBy: { createdAt: 'desc' },
-    })
+    if (isNextProductionBuild) {
+      return []
+    }
+
+    try {
+      return await prisma.news.findMany({
+        where: { isPublished: true },
+        orderBy: { createdAt: 'desc' },
+      })
+    } catch (error) {
+      console.warn('[news] Unable to load published news from database.')
+      if (process.env.NODE_ENV === 'development') {
+        console.error(error)
+      }
+      return []
+    }
   },
 
   /**
@@ -572,22 +588,34 @@ export const newsService = {
    * Get news by slug.
    */
   async getNewsBySlug(slug: string) {
-    return prisma.news.findUnique({
-      where: { slug, isPublished: true },
-    })
+    if (isNextProductionBuild) {
+      return null
+    }
+
+    try {
+      return await prisma.news.findFirst({
+        where: { slug, isPublished: true },
+      })
+    } catch (error) {
+      console.warn('[news] Unable to load news item from database.')
+      if (process.env.NODE_ENV === 'development') {
+        console.error(error)
+      }
+      return null
+    }
   },
 
   /**
    * Create news (admin).
    */
-  async createNews(data: any) {
+  async createNews(data: CreateNewsInput) {
     return prisma.news.create({ data })
   },
 
   /**
    * Update news (admin).
    */
-  async updateNews(id: string, data: any) {
+  async updateNews(id: string, data: UpdateNewsInput) {
     return prisma.news.update({
       where: { id },
       data,
@@ -638,18 +666,41 @@ export const adminStatsService = {
    * Get dashboard stats.
    */
   async getDashboardStats() {
-    const [productsCount, categoriesCount, ordersCount, customersCount] = await Promise.all([
-      prisma.product.count(),
-      prisma.category.count(),
-      prisma.order.count(),
-      prisma.profile.count({ where: { role: 'user' } }),
-    ])
+    if (isNextProductionBuild) {
+      return {
+        productsCount: 0,
+        categoriesCount: 0,
+        ordersCount: 0,
+        customersCount: 0,
+      }
+    }
 
-    return {
-      productsCount,
-      categoriesCount,
-      ordersCount,
-      customersCount,
+    try {
+      const [productsCount, categoriesCount, ordersCount, customersCount] = await Promise.all([
+        prisma.product.count(),
+        prisma.category.count(),
+        prisma.order.count(),
+        prisma.profile.count({ where: { role: 'user' } }),
+      ])
+
+      return {
+        productsCount,
+        categoriesCount,
+        ordersCount,
+        customersCount,
+      }
+    } catch (error) {
+      console.warn('[admin] Unable to load dashboard stats from database.')
+      if (process.env.NODE_ENV === 'development') {
+        console.error(error)
+      }
+
+      return {
+        productsCount: 0,
+        categoriesCount: 0,
+        ordersCount: 0,
+        customersCount: 0,
+      }
     }
   },
 
@@ -657,9 +708,21 @@ export const adminStatsService = {
    * Get recent orders for admin dashboard.
    */
   async getRecentOrders(limit = 5) {
-    return prisma.order.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    })
+    if (isNextProductionBuild) {
+      return []
+    }
+
+    try {
+      return await prisma.order.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      })
+    } catch (error) {
+      console.warn('[admin] Unable to load recent orders from database.')
+      if (process.env.NODE_ENV === 'development') {
+        console.error(error)
+      }
+      return []
+    }
   },
 }

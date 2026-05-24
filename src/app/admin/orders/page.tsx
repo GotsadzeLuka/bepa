@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
@@ -72,17 +72,13 @@ const statusColors: Record<string, string> = {
 }
 
 export default function OrdersPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  useEffect(() => {
-    fetchOrders()
-  }, [])
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase
       .from('orders')
       .select(`
@@ -101,7 +97,11 @@ export default function OrdersPage() {
       setOrders((data as unknown as Order[]) || [])
     }
     setLoading(false)
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    void Promise.resolve().then(fetchOrders)
+  }, [fetchOrders])
 
   const updateStatus = async (orderId: string, status: string) => {
     const { error } = await supabase

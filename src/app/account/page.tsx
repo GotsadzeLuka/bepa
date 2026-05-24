@@ -1,37 +1,26 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { User } from 'lucide-react'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
-interface Profile {
-  id: string
-  full_name: string | null
-  phone: string | null
-  address: string | null
-}
-
 export default function AccountPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
     address: '',
   })
 
-  useEffect(() => {
-    loadProfile()
-  }, [])
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -45,7 +34,6 @@ export default function AccountPage() {
         .single()
 
       if (profile) {
-        setProfile(profile)
         setFormData({
           full_name: profile.full_name || '',
           phone: profile.phone || '',
@@ -57,7 +45,11 @@ export default function AccountPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

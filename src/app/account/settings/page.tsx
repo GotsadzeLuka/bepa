@@ -39,9 +39,9 @@ export default function SettingsPage() {
 
       toast.success('Password updated successfully')
       setPasswords({ newPassword: '', confirmPassword: '' })
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating password:', error)
-      toast.error(error.message || 'Failed to update password')
+      toast.error(error instanceof Error ? error.message : 'Failed to update password')
     } finally {
       setLoading(false)
     }

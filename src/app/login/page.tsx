@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,8 +17,9 @@ export default function LoginPage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') || '/'
-  const supabase = createClient()
+  const redirectParam = searchParams.get('redirect')
+  const redirect = redirectParam?.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/'
+  const supabase = hasSupabaseConfig ? createClient() : null
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,6 +27,10 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!supabase) {
+      toast.error('Supabase is not configured for authentication.')
+      return
+    }
     setLoading(true)
 
     try {
@@ -56,10 +62,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container flex items-center justify-center min-h-[80vh] py-8">
-      <Card className="w-full max-w-md">
+    <div className="container flex min-h-[80vh] items-center justify-center py-10">
+      <Card className="w-full max-w-md rounded-[2rem] border-white/70 bg-white/88 shadow-[0_24px_72px_-46px_rgba(15,23,42,0.5)] backdrop-blur-xl">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
+          <CardTitle className="text-center font-display text-3xl font-black tracking-tight text-slate-950">
             {t('loginTitle')}
           </CardTitle>
           <CardDescription className="text-center">
@@ -74,8 +80,10 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="name@example.com"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="h-11 rounded-xl bg-white"
                 required
               />
             </div>
@@ -84,8 +92,10 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="h-11 rounded-xl bg-white"
                 required
               />
             </div>
@@ -97,7 +107,7 @@ export default function LoginPage() {
             </Link>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full rounded-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('loginButton')}
             </Button>

@@ -1,6 +1,18 @@
 import { adminStatsService } from '@/lib/services'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package, FolderTree, ShoppingCart, Users, DollarSign, TrendingUp } from 'lucide-react'
+import { Package, FolderTree, ShoppingCart, Users } from 'lucide-react'
+
+type RecentOrder = Awaited<ReturnType<typeof adminStatsService.getRecentOrders>>[number]
+
+function getCustomerName(shippingAddress: RecentOrder['shippingAddress']) {
+  if (!shippingAddress || typeof shippingAddress !== 'object' || Array.isArray(shippingAddress)) {
+    return 'Guest customer'
+  }
+
+  const firstName = typeof shippingAddress.firstName === 'string' ? shippingAddress.firstName : ''
+  const lastName = typeof shippingAddress.lastName === 'string' ? shippingAddress.lastName : ''
+  return `${firstName} ${lastName}`.trim() || 'Guest customer'
+}
 
 export default async function AdminDashboard() {
   // Fetch stats using Prisma
@@ -51,7 +63,7 @@ export default async function AdminDashboard() {
         <CardContent>
           {recentOrders && recentOrders.length > 0 ? (
             <div className="space-y-4">
-              {recentOrders.map((order: any) => (
+              {recentOrders.map((order: RecentOrder) => (
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-4 rounded-lg bg-zinc-800"
@@ -59,7 +71,7 @@ export default async function AdminDashboard() {
                   <div>
                     <p className="font-medium text-white">{order.id.slice(0, 8).toUpperCase()}</p>
                     <p className="text-sm text-zinc-400">
-                      {order.shippingAddress?.firstName} {order.shippingAddress?.lastName}
+                      {getCustomerName(order.shippingAddress)}
                     </p>
                   </div>
                   <div className="text-right">
