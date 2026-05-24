@@ -33,13 +33,26 @@ export function getSupabaseClientEnv() {
 }
 
 export function getPublicAppUrl() {
+  const configuredAppUrl = appUrl.startsWith('https://')
+    ? appUrl.replace(/\/$/, '')
+    : ''
+
   if (typeof window !== 'undefined') {
-    return window.location.origin
+    const currentOrigin = window.location.origin
+    const currentHostname = window.location.hostname
+    const isLocalhost =
+      currentHostname === 'localhost' ||
+      currentHostname === '127.0.0.1' ||
+      currentHostname === '0.0.0.0' ||
+      currentHostname === '::1' ||
+      currentHostname === '[::1]'
+
+    if (isLocalhost) {
+      return currentOrigin
+    }
+
+    return configuredAppUrl || currentOrigin
   }
 
-  if (appUrl.startsWith('https://')) {
-    return appUrl.replace(/\/$/, '')
-  }
-
-  return ''
+  return configuredAppUrl
 }
