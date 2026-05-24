@@ -36,6 +36,11 @@ export function getPublicAppUrl() {
   const configuredAppUrl = appUrl.startsWith('https://')
     ? appUrl.replace(/\/$/, '')
     : ''
+  const isProductionBuild = process.env.NODE_ENV === 'production'
+
+  if (isProductionBuild && configuredAppUrl) {
+    return configuredAppUrl
+  }
 
   if (typeof window !== 'undefined') {
     const currentOrigin = window.location.origin
