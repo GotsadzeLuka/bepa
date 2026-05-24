@@ -39,6 +39,15 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+  const authError =
+    request.nextUrl.searchParams.get('error_description') ??
+    request.nextUrl.searchParams.get('error')
+
+  if (authError && pathname !== '/login') {
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('error', authError)
+    return NextResponse.redirect(redirectUrl)
+  }
 
   // Admin routes protection
   if (pathname.startsWith('/admin')) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
+  const authError = searchParams.get('error')
   const redirect = redirectParam?.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/'
   const supabase = hasSupabaseConfig ? createClient() : null
 
@@ -31,6 +32,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<Provider | null>(null)
+
+  useEffect(() => {
+    if (authError) {
+      toast.error(authError)
+    }
+  }, [authError])
 
   const getOAuthRedirectUrl = () => {
     const callbackUrl = new URL('/auth/callback', getPublicAppUrl())

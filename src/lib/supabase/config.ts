@@ -33,12 +33,12 @@ export function getSupabaseClientEnv() {
 }
 
 export function getPublicAppUrl() {
-  if (appUrl.startsWith('https://')) {
-    return appUrl.replace(/\/$/, '')
-  }
-
   if (typeof window !== 'undefined') {
     return window.location.origin
+  }
+
+  if (appUrl.startsWith('https://')) {
+    return appUrl.replace(/\/$/, '')
   }
 
   return ''
