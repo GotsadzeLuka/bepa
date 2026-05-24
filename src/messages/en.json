@@ -78,7 +78,6 @@
     "loginButton": "Login",
     "registerButton": "Register",
     "continueWithGoogle": "Continue with Google",
-    "continueWithGithub": "Continue with GitHub",
     "orContinueWithEmail": "or continue with email",
     "invalidCredentials": "Invalid email or password",
     "passwordMismatch": "Passwords do not match",

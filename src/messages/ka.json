@@ -78,7 +78,6 @@
     "loginButton": "შესვლა",
     "registerButton": "რეგისტრაცია",
     "continueWithGoogle": "Google-ით გაგრძელება",
-    "continueWithGithub": "GitHub-ით გაგრძელება",
     "orContinueWithEmail": "ან გააგრძელეთ ელ.ფოსტით",
     "invalidCredentials": "არასწორი ელ.ფოსტა ან პაროლი",
     "passwordMismatch": "პაროლები არ ემთხვევა",

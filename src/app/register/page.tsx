@@ -14,11 +14,10 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Github, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
-const oauthProviders: { provider: Provider; labelKey: 'continueWithGoogle' | 'continueWithGithub' }[] = [
+const oauthProviders: { provider: Provider; labelKey: 'continueWithGoogle' }[] = [
   { provider: 'google', labelKey: 'continueWithGoogle' },
-  { provider: 'github', labelKey: 'continueWithGithub' },
 ]
 
 export default function RegisterPage() {
@@ -164,8 +163,6 @@ export default function RegisterPage() {
             >
               {oauthLoading === provider ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : provider === 'github' ? (
-                <Github className="mr-2 h-4 w-4" />
               ) : (
                 <span className="mr-2 grid h-4 w-4 place-items-center rounded-full border text-[10px] font-bold">
                   G
