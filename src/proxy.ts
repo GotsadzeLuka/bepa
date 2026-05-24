@@ -11,6 +11,24 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
+  const { pathname, searchParams } = request.nextUrl
+  const hasOAuthCode = searchParams.has('code')
+  const authError =
+    searchParams.get('error_description') ??
+    searchParams.get('error')
+
+  if (hasOAuthCode && pathname !== '/auth/callback') {
+    const redirectUrl = new URL('/auth/callback', request.url)
+    redirectUrl.search = request.nextUrl.search
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  if (authError && pathname !== '/login') {
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('error', authError)
+    return NextResponse.redirect(redirectUrl)
+  }
+
   const { supabaseUrl, supabasePublishableKey } = getSupabaseClientEnv()
 
   const supabase = createServerClient(
@@ -37,17 +55,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
-  const authError =
-    request.nextUrl.searchParams.get('error_description') ??
-    request.nextUrl.searchParams.get('error')
-
-  if (authError && pathname !== '/login') {
-    const redirectUrl = new URL('/login', request.url)
-    redirectUrl.searchParams.set('error', authError)
-    return NextResponse.redirect(redirectUrl)
-  }
 
   // Admin routes protection
   if (pathname.startsWith('/admin')) {
