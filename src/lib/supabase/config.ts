@@ -1,4 +1,5 @@
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
 const supabasePublishableKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
@@ -29,4 +30,16 @@ export function getSupabaseClientEnv() {
     supabaseUrl,
     supabasePublishableKey,
   }
+}
+
+export function getPublicAppUrl() {
+  if (appUrl.startsWith('https://')) {
+    return appUrl.replace(/\/$/, '')
+  }
+
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+
+  return ''
 }

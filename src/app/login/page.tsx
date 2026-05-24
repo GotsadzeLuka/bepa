@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { Provider } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { hasSupabaseConfig } from '@/lib/supabase/config'
+import { getPublicAppUrl, hasSupabaseConfig } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,7 +33,7 @@ export default function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState<Provider | null>(null)
 
   const getOAuthRedirectUrl = () => {
-    const callbackUrl = new URL('/auth/callback', window.location.origin)
+    const callbackUrl = new URL('/auth/callback', getPublicAppUrl())
     callbackUrl.searchParams.set('next', redirect)
     return callbackUrl.toString()
   }

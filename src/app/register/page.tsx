@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { Provider } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { hasSupabaseConfig } from '@/lib/supabase/config'
+import { getPublicAppUrl, hasSupabaseConfig } from '@/lib/supabase/config'
 import { updateProfile } from '@/app/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,7 +67,7 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/login`,
+          emailRedirectTo: `${getPublicAppUrl()}/auth/callback?next=/login`,
           data: {
             full_name: formData.fullName,
             phone: formData.phone,
@@ -120,7 +120,7 @@ export default function RegisterPage() {
     setOauthLoading(provider)
 
     try {
-      const callbackUrl = new URL('/auth/callback', window.location.origin)
+      const callbackUrl = new URL('/auth/callback', getPublicAppUrl())
       callbackUrl.searchParams.set('next', '/account')
 
       const { error } = await supabase.auth.signInWithOAuth({
