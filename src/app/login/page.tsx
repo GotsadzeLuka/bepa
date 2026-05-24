@@ -4,14 +4,21 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import type { Provider } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Github, Loader2 } from 'lucide-react'
+
+const oauthProviders: { provider: Provider; labelKey: 'continueWithGoogle' | 'continueWithGithub' }[] = [
+  { provider: 'google', labelKey: 'continueWithGoogle' },
+  { provider: 'github', labelKey: 'continueWithGithub' },
+]
 
 export default function LoginPage() {
   const t = useTranslations('auth')
@@ -24,6 +31,39 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState<Provider | null>(null)
+
+  const getOAuthRedirectUrl = () => {
+    const callbackUrl = new URL('/auth/callback', window.location.origin)
+    callbackUrl.searchParams.set('next', redirect)
+    return callbackUrl.toString()
+  }
+
+  const handleOAuthLogin = async (provider: Provider) => {
+    if (!supabase) {
+      toast.error('Supabase is not configured for authentication.')
+      return
+    }
+
+    setOauthLoading(provider)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: getOAuthRedirectUrl(),
+        },
+      })
+
+      if (error) {
+        toast.error(error.message)
+        setOauthLoading(null)
+      }
+    } catch {
+      toast.error('An error occurred')
+      setOauthLoading(null)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,6 +112,34 @@ export default function LoginPage() {
             Enter your email and password to login
           </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-3">
+          {oauthProviders.map(({ provider, labelKey }) => (
+            <Button
+              key={provider}
+              type="button"
+              variant="outline"
+              className="w-full rounded-full bg-white"
+              disabled={loading || Boolean(oauthLoading)}
+              onClick={() => handleOAuthLogin(provider)}
+            >
+              {oauthLoading === provider ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : provider === 'github' ? (
+                <Github className="mr-2 h-4 w-4" />
+              ) : (
+                <span className="mr-2 grid h-4 w-4 place-items-center rounded-full border text-[10px] font-bold">
+                  G
+                </span>
+              )}
+              {t(labelKey)}
+            </Button>
+          ))}
+          <div className="flex items-center gap-3 py-1">
+            <Separator className="flex-1" />
+            <span className="text-xs uppercase text-muted-foreground">{t('orContinueWithEmail')}</span>
+            <Separator className="flex-1" />
+          </div>
+        </CardContent>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">

@@ -4,15 +4,22 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import type { Provider } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { updateProfile } from '@/app/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Github, Loader2 } from 'lucide-react'
+
+const oauthProviders: { provider: Provider; labelKey: 'continueWithGoogle' | 'continueWithGithub' }[] = [
+  { provider: 'google', labelKey: 'continueWithGoogle' },
+  { provider: 'github', labelKey: 'continueWithGithub' },
+]
 
 export default function RegisterPage() {
   const t = useTranslations('auth')
@@ -27,6 +34,7 @@ export default function RegisterPage() {
     phone: '',
   })
   const [loading, setLoading] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState<Provider | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -60,6 +68,7 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/login`,
           data: {
             full_name: formData.fullName,
             phone: formData.phone,
@@ -103,6 +112,35 @@ export default function RegisterPage() {
     }
   }
 
+  const handleOAuthRegister = async (provider: Provider) => {
+    if (!supabase) {
+      toast.error('Supabase is not configured for authentication.')
+      return
+    }
+
+    setOauthLoading(provider)
+
+    try {
+      const callbackUrl = new URL('/auth/callback', window.location.origin)
+      callbackUrl.searchParams.set('next', '/account')
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: callbackUrl.toString(),
+        },
+      })
+
+      if (error) {
+        toast.error(error.message)
+        setOauthLoading(null)
+      }
+    } catch {
+      toast.error('An error occurred')
+      setOauthLoading(null)
+    }
+  }
+
   return (
     <div className="container flex min-h-[80vh] items-center justify-center py-10">
       <Card className="w-full max-w-md rounded-[2rem] border-white/70 bg-white/88 shadow-[0_24px_72px_-46px_rgba(15,23,42,0.5)] backdrop-blur-xl">
@@ -114,6 +152,34 @@ export default function RegisterPage() {
             Create your account to start shopping
           </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-3">
+          {oauthProviders.map(({ provider, labelKey }) => (
+            <Button
+              key={provider}
+              type="button"
+              variant="outline"
+              className="w-full rounded-full bg-white"
+              disabled={loading || Boolean(oauthLoading)}
+              onClick={() => handleOAuthRegister(provider)}
+            >
+              {oauthLoading === provider ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : provider === 'github' ? (
+                <Github className="mr-2 h-4 w-4" />
+              ) : (
+                <span className="mr-2 grid h-4 w-4 place-items-center rounded-full border text-[10px] font-bold">
+                  G
+                </span>
+              )}
+              {t(labelKey)}
+            </Button>
+          ))}
+          <div className="flex items-center gap-3 py-1">
+            <Separator className="flex-1" />
+            <span className="text-xs uppercase text-muted-foreground">{t('orContinueWithEmail')}</span>
+            <Separator className="flex-1" />
+          </div>
+        </CardContent>
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
