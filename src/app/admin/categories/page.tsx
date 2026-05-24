@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { supabaseStorageBucket } from '@/lib/supabase/config'
 import { getCategoriesAdmin, createCategory, updateCategory, deleteCategory } from '@/app/admin/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -114,10 +115,10 @@ export default function CategoriesPage() {
       // Upload image if selected (using Supabase storage on client)
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop()
-        const fileName = `${formData.slug}-${Date.now()}.${fileExt}`
+        const fileName = `categories/${formData.slug}-${Date.now()}.${fileExt}`
 
         const { error: uploadError } = await supabase.storage
-          .from('categories')
+          .from(supabaseStorageBucket)
           .upload(fileName, imageFile)
 
         if (uploadError) {
@@ -127,7 +128,7 @@ export default function CategoriesPage() {
         }
 
         const { data: urlData } = supabase.storage
-          .from('categories')
+          .from(supabaseStorageBucket)
           .getPublicUrl(fileName)
 
         imageUrl = urlData.publicUrl

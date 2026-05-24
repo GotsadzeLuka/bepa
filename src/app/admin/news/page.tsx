@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
+import { supabaseStorageBucket } from '@/lib/supabase/config'
 import { toast } from 'sonner'
 
 interface NewsItem {
@@ -101,12 +102,12 @@ export default function AdminNewsPage() {
       const filePath = `news/${fileName}`
 
       const { error: uploadError } = await supabase.storage
-        .from('news')
+        .from(supabaseStorageBucket)
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data } = supabase.storage.from('news').getPublicUrl(filePath)
+      const { data } = supabase.storage.from(supabaseStorageBucket).getPublicUrl(filePath)
       setFormData({ ...formData, image_url: data.publicUrl })
       toast.success('Image uploaded')
     } catch (error) {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { supabaseStorageBucket } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -205,15 +206,15 @@ export default function ProductsPage() {
         for (let i = 0; i < imageFiles.length; i++) {
           const file = imageFiles[i]
           const fileExt = file.name.split('.').pop()
-          const fileName = `${productId}-${Date.now()}-${i}.${fileExt}`
+          const fileName = `products/${productId}-${Date.now()}-${i}.${fileExt}`
 
           const { error: uploadError } = await supabase.storage
-            .from('products')
+            .from(supabaseStorageBucket)
             .upload(fileName, file)
 
           if (!uploadError) {
             const { data: urlData } = supabase.storage
-              .from('products')
+              .from(supabaseStorageBucket)
               .getPublicUrl(fileName)
 
             await supabase.from('product_images').insert({

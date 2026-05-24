@@ -3,6 +3,10 @@ const supabasePublishableKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
   ''
+export const supabaseStorageBucket =
+  process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ??
+  process.env.SUPABASE_STORAGE_BUCKET ??
+  'BePa-PublicStorage'
 
 const hasRealSupabaseUrl =
   supabaseUrl.startsWith('https://') &&
