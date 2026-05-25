@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { Provider } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { getPublicAppUrl, hasSupabaseConfig, setOAuthNextCookie } from '@/lib/supabase/config'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -39,10 +39,6 @@ export default function LoginPage() {
     }
   }, [authError])
 
-  const getOAuthRedirectUrl = () => {
-    return new URL('/auth/callback', getPublicAppUrl()).toString()
-  }
-
   const handleOAuthLogin = async (provider: Provider) => {
     if (!supabase) {
       toast.error('Supabase is not configured for authentication.')
@@ -50,24 +46,9 @@ export default function LoginPage() {
     }
 
     setOauthLoading(provider)
-    setOAuthNextCookie(redirect)
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: getOAuthRedirectUrl(),
-        },
-      })
-
-      if (error) {
-        toast.error(error.message)
-        setOauthLoading(null)
-      }
-    } catch {
-      toast.error('An error occurred')
-      setOauthLoading(null)
-    }
+    const loginUrl = new URL(`/auth/sign-in/${provider}`, window.location.origin)
+    loginUrl.searchParams.set('next', redirect)
+    window.location.assign(loginUrl.toString())
   }
 
   const handleLogin = async (e: React.FormEvent) => {

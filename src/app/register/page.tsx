@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { Provider } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { getPublicAppUrl, hasSupabaseConfig, setOAuthNextCookie } from '@/lib/supabase/config'
+import { getPublicAppUrl, hasSupabaseConfig } from '@/lib/supabase/config'
 import { updateProfile } from '@/app/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -118,26 +118,7 @@ export default function RegisterPage() {
     }
 
     setOauthLoading(provider)
-    setOAuthNextCookie('/account')
-
-    try {
-      const callbackUrl = new URL('/auth/callback', getPublicAppUrl())
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: callbackUrl.toString(),
-        },
-      })
-
-      if (error) {
-        toast.error(error.message)
-        setOauthLoading(null)
-      }
-    } catch {
-      toast.error('An error occurred')
-      setOauthLoading(null)
-    }
+    window.location.assign(`/auth/sign-in/${provider}?next=/account`)
   }
 
   return (

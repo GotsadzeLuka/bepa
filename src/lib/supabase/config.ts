@@ -70,14 +70,3 @@ export function getPublicAppUrl() {
 
   return configuredAppUrl
 }
-
-export function setOAuthNextCookie(next: string) {
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
-    return
-  }
-
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/'
-  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
-
-  document.cookie = `${oauthNextCookieName}=${encodeURIComponent(safeNext)}; Path=/; Max-Age=600; SameSite=Lax${secure}`
-}
