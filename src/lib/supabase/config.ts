@@ -19,6 +19,16 @@ const hasRealSupabaseKey =
 
 export const hasSupabaseConfig = Boolean(hasRealSupabaseUrl && hasRealSupabaseKey)
 
+function getConfiguredAppUrl() {
+  const normalizedAppUrl = appUrl.replace(/^NEXT_PUBLIC_APP_URL=/, '').trim()
+
+  if (normalizedAppUrl.startsWith('https://')) {
+    return normalizedAppUrl.replace(/\/$/, '')
+  }
+
+  return ''
+}
+
 export function getSupabaseClientEnv() {
   if (!hasSupabaseConfig) {
     throw new Error(
@@ -33,9 +43,7 @@ export function getSupabaseClientEnv() {
 }
 
 export function getPublicAppUrl() {
-  const configuredAppUrl = appUrl.startsWith('https://')
-    ? appUrl.replace(/\/$/, '')
-    : ''
+  const configuredAppUrl = getConfiguredAppUrl()
   const isProductionBuild = process.env.NODE_ENV === 'production'
 
   if (isProductionBuild && configuredAppUrl) {
