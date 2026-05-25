@@ -29,13 +29,7 @@ function getSafeRedirect(next: string | null) {
 }
 
 function getOAuthOrigin(request: NextRequest) {
-  const configuredAppUrl = getPublicAppUrl()
-
-  if (process.env.NODE_ENV === 'production' && configuredAppUrl) {
-    return configuredAppUrl
-  }
-
-  return request.nextUrl.origin
+  return getPublicAppUrl() || request.nextUrl.origin
 }
 
 function getErrorRedirect(request: NextRequest, message: string) {
