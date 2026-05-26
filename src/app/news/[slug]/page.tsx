@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Calendar, Newspaper } from 'lucide-react'
 import { newsService } from '@/lib/services'
+import { getSafeImageSrc } from '@/lib/storefront-media'
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -19,6 +20,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
   if (!news) {
     notFound()
   }
+  const imageUrl = getSafeImageSrc(news.imageUrl)
 
   return (
     <div className="container py-8">
@@ -51,10 +53,10 @@ export default async function NewsDetailPage({ params }: PageProps) {
         </header>
 
         {/* Featured Image */}
-        {news.imageUrl ? (
+        {imageUrl ? (
           <div className="relative aspect-video rounded-lg overflow-hidden mb-8">
             <Image
-              src={news.imageUrl}
+              src={imageUrl}
               alt={news.title}
               fill
               className="object-cover"

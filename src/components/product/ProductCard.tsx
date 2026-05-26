@@ -67,14 +67,20 @@ export function ProductCard({ product }: ProductCardProps) {
     <Card className="group h-full overflow-hidden rounded-[2rem] border-white/70 bg-white/88 py-0 shadow-[0_20px_58px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_32px_90px_-42px_rgba(15,23,42,0.58)]">
       <div className="relative aspect-[0.9] overflow-hidden bg-slate-950">
         <Link href={`/product/${product.slug}`} className="absolute inset-0">
-          <Image
-            src={imageUrl}
-            alt={media.alt || name}
-            fill
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
-            style={{ objectPosition: media.objectPosition }}
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
-          />
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={media.alt || name}
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
+              style={{ objectPosition: media.objectPosition }}
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-slate-900 text-white/30">
+              <ShoppingCart className="h-14 w-14" />
+            </div>
+          )}
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.08),rgba(15,23,42,0.18)_34%,rgba(15,23,42,0.84)_100%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.24),transparent_26%)]" />
         </Link>

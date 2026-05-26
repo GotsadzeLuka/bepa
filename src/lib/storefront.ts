@@ -1,272 +1,266 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import {
   normalizeCategory,
   normalizeProduct,
   normalizeReview,
   type StoreProductFilters,
+  type StoreProductResult,
 } from '@/lib/catalog'
-import {
-  getMockCategories,
-  getMockFeaturedProducts,
-  getMockLatestProducts,
-  getMockProductBySlug,
-  getMockProductReviews,
-  getMockProducts,
-  getMockRelatedProducts,
-  getMockSaleProducts,
-} from '@/lib/mock-data'
+import { productFilterSchema, slugSchema, uuidSchema } from '@/lib/validations'
 
-const preferredStorefrontMode = process.env.BEPA_STOREFRONT_MODE
-let storefrontMode: 'unknown' | 'database' | 'demo' =
-  preferredStorefrontMode === 'database'
-    ? 'unknown'
-    : preferredStorefrontMode === 'demo' || process.env.NODE_ENV === 'development'
-      ? 'demo'
-      : 'unknown'
+const requireDatabaseStorefront = process.env.BEPA_STOREFRONT_MODE === 'database'
+const storefrontDemoMode = process.env.BEPA_STOREFRONT_MODE === 'demo'
 
-function activateDemoMode(reason: string, error?: unknown) {
-  if (storefrontMode !== 'demo') {
-    console.warn(`[storefront] Using demo catalog: ${reason}`)
+function logStorefrontReadFailure(context: string, error: unknown) {
+  if (requireDatabaseStorefront) {
+    throw error
   }
 
-  if (error) {
+  console.warn(`[storefront] Unable to load ${context} from database.`)
+  if (process.env.NODE_ENV === 'development') {
     console.error(error)
   }
-
-  storefrontMode = 'demo'
 }
 
-async function runWithDemoFallback<T>(
-  query: () => Promise<T>,
-  fallback: () => T,
-  isEmpty: (value: T) => boolean
-) {
-  if (storefrontMode === 'demo') {
-    return fallback()
+function emptyProductResult(filters: StoreProductFilters): StoreProductResult {
+  return {
+    products: [],
+    pagination: {
+      page: filters.page ?? 1,
+      limit: filters.limit ?? 12,
+      total: 0,
+      totalPages: 1,
+    },
+  }
+}
+
+const productInclude = {
+  category: true,
+  images: { orderBy: { sortOrder: 'asc' as const } },
+  variants: { where: { isActive: true }, orderBy: { createdAt: 'asc' as const } },
+} satisfies Prisma.ProductInclude
+
+function parseProductFilters(filters: StoreProductFilters) {
+  const parsed = productFilterSchema.safeParse({
+    ...filters,
+    limit: filters.limit ?? 12,
+    page: filters.page ?? 1,
+  })
+
+  return parsed.success ? parsed.data : null
+}
+
+function getProductOrderBy(sort: StoreProductFilters['sort']): Prisma.ProductOrderByWithRelationInput {
+  switch (sort) {
+    case 'price-asc':
+      return { price: 'asc' }
+    case 'price-desc':
+      return { price: 'desc' }
+    case 'name':
+      return { nameEn: 'asc' }
+    case 'newest':
+    default:
+      return { createdAt: 'desc' }
+  }
+}
+
+function buildProductWhere(filters: NonNullable<ReturnType<typeof parseProductFilters>>) {
+  const where: Prisma.ProductWhereInput = { isActive: true }
+
+  if (filters.category) {
+    where.category = { slug: filters.category, isActive: true }
   }
 
-  try {
-    const result = await query()
-
-    if (isEmpty(result)) {
-      activateDemoMode('database returned no storefront content')
-      return fallback()
-    }
-
-    storefrontMode = 'database'
-    return result
-  } catch (error) {
-    activateDemoMode('database request failed', error)
-    return fallback()
+  if (filters.search) {
+    where.OR = [
+      { nameEn: { contains: filters.search, mode: 'insensitive' } },
+      { nameKa: { contains: filters.search, mode: 'insensitive' } },
+      { descriptionEn: { contains: filters.search, mode: 'insensitive' } },
+      { descriptionKa: { contains: filters.search, mode: 'insensitive' } },
+      { sku: { contains: filters.search, mode: 'insensitive' } },
+    ]
   }
+
+  if (filters.featured) {
+    where.isFeatured = true
+  }
+
+  if (filters.sale) {
+    where.salePrice = { not: null }
+  }
+
+  return where
 }
 
 export const storefrontService = {
   async getHomePageData() {
-    return runWithDemoFallback(
-      async () => {
-        const [categories, featuredProducts, saleProducts, latestProducts] = await Promise.all([
-          prisma.category.findMany({
-            where: { isActive: true },
-            orderBy: { sortOrder: 'asc' },
-          }),
-          prisma.product.findMany({
-            where: { isActive: true, isFeatured: true },
-            take: 8,
-            orderBy: { createdAt: 'desc' },
-            include: {
-              category: true,
-              images: { orderBy: { sortOrder: 'asc' } },
-              variants: { where: { isActive: true } },
-            },
-          }),
-          prisma.product.findMany({
-            where: { isActive: true, salePrice: { not: null } },
-            take: 8,
-            orderBy: { createdAt: 'desc' },
-            include: {
-              category: true,
-              images: { orderBy: { sortOrder: 'asc' } },
-              variants: { where: { isActive: true } },
-            },
-          }),
-          prisma.product.findMany({
-            where: { isActive: true },
-            take: 8,
-            orderBy: { createdAt: 'desc' },
-            include: {
-              category: true,
-              images: { orderBy: { sortOrder: 'asc' } },
-              variants: { where: { isActive: true } },
-            },
-          }),
-        ])
+    if (storefrontDemoMode) {
+      console.warn('[storefront] BEPA_STOREFRONT_MODE=demo is set, but bundled runtime mock data is disabled.')
+    }
 
-        return {
-          categories: categories.map(normalizeCategory),
-          featuredProducts: featuredProducts.map(normalizeProduct),
-          saleProducts: saleProducts.map(normalizeProduct),
-          latestProducts: latestProducts.map(normalizeProduct),
-        }
-      },
-      () => ({
-        categories: getMockCategories(),
-        featuredProducts: getMockFeaturedProducts(8),
-        saleProducts: getMockSaleProducts(8),
-        latestProducts: getMockLatestProducts(8),
-      }),
-      (result) => result.categories.length === 0 || result.latestProducts.length === 0
-    )
+    try {
+      const [categories, featuredProducts, saleProducts, latestProducts] = await Promise.all([
+        prisma.category.findMany({
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { nameEn: 'asc' }],
+        }),
+        prisma.product.findMany({
+          where: { isActive: true, isFeatured: true },
+          take: 8,
+          orderBy: { createdAt: 'desc' },
+          include: productInclude,
+        }),
+        prisma.product.findMany({
+          where: { isActive: true, salePrice: { not: null } },
+          take: 8,
+          orderBy: { createdAt: 'desc' },
+          include: productInclude,
+        }),
+        prisma.product.findMany({
+          where: { isActive: true },
+          take: 8,
+          orderBy: { createdAt: 'desc' },
+          include: productInclude,
+        }),
+      ])
+
+      return {
+        categories: categories.map(normalizeCategory),
+        featuredProducts: featuredProducts.map(normalizeProduct),
+        saleProducts: saleProducts.map(normalizeProduct),
+        latestProducts: latestProducts.map(normalizeProduct),
+      }
+    } catch (error) {
+      logStorefrontReadFailure('homepage data', error)
+      return {
+        categories: [],
+        featuredProducts: [],
+        saleProducts: [],
+        latestProducts: [],
+      }
+    }
   },
 
   async getCategories() {
-    return runWithDemoFallback(
-      async () => {
-        const categories = await prisma.category.findMany({
-          where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
-        })
+    try {
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { nameEn: 'asc' }],
+      })
 
-        return categories.map(normalizeCategory)
-      },
-      getMockCategories,
-      (categories) => categories.length === 0
-    )
+      return categories.map(normalizeCategory)
+    } catch (error) {
+      logStorefrontReadFailure('categories', error)
+      return []
+    }
   },
 
   async getProducts(filters: StoreProductFilters) {
-    return runWithDemoFallback(
-      async () => {
-        const page = filters.page ?? 1
-        const limit = filters.limit ?? 12
-        const skip = (page - 1) * limit
-        const where: Record<string, unknown> = { isActive: true }
+    const validatedFilters = parseProductFilters(filters)
+    if (!validatedFilters) {
+      return emptyProductResult(filters)
+    }
 
-        if (filters.category) {
-          where.category = { slug: filters.category }
-        }
+    const page = validatedFilters.page
+    const limit = validatedFilters.limit
+    const skip = (page - 1) * limit
+    const where = buildProductWhere(validatedFilters)
 
-        if (filters.search) {
-          where.OR = [
-            { nameEn: { contains: filters.search, mode: 'insensitive' } },
-            { nameKa: { contains: filters.search, mode: 'insensitive' } },
-            { descriptionEn: { contains: filters.search, mode: 'insensitive' } },
-          ]
-        }
+    try {
+      const [products, total] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          orderBy: getProductOrderBy(validatedFilters.sort),
+          skip,
+          take: limit,
+          include: productInclude,
+        }),
+        prisma.product.count({ where }),
+      ])
 
-        if (filters.featured) {
-          where.isFeatured = true
-        }
-
-        if (filters.sale) {
-          where.salePrice = { not: null }
-        }
-
-        let orderBy: Record<string, 'asc' | 'desc'> = { createdAt: 'desc' }
-
-        switch (filters.sort) {
-          case 'price-asc':
-            orderBy = { price: 'asc' }
-            break
-          case 'price-desc':
-            orderBy = { price: 'desc' }
-            break
-          case 'name':
-            orderBy = { nameEn: 'asc' }
-            break
-          default:
-            orderBy = { createdAt: 'desc' }
-            break
-        }
-
-        const [products, total] = await Promise.all([
-          prisma.product.findMany({
-            where,
-            orderBy,
-            skip,
-            take: limit,
-            include: {
-              category: true,
-              images: { orderBy: { sortOrder: 'asc' } },
-              variants: { where: { isActive: true } },
-            },
-          }),
-          prisma.product.count({ where }),
-        ])
-
-        return {
-          products: products.map(normalizeProduct),
-          pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.max(1, Math.ceil(total / limit)),
-          },
-        }
-      },
-      () => getMockProducts(filters),
-      (result) => result.products.length === 0
-    )
+      return {
+        products: products.map(normalizeProduct),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      }
+    } catch (error) {
+      logStorefrontReadFailure('products', error)
+      return emptyProductResult(validatedFilters)
+    }
   },
 
   async getProductBySlug(slug: string) {
-    return runWithDemoFallback(
-      async () => {
-        const product = await prisma.product.findFirst({
-          where: { slug, isActive: true },
-          include: {
-            category: true,
-            images: { orderBy: { sortOrder: 'asc' } },
-            variants: { where: { isActive: true } },
-          },
-        })
+    const validatedSlug = slugSchema.safeParse(slug)
+    if (!validatedSlug.success) {
+      return null
+    }
 
-        return product ? normalizeProduct(product) : null
-      },
-      () => getMockProductBySlug(slug),
-      (product) => product === null
-    )
+    try {
+      const product = await prisma.product.findFirst({
+        where: { slug: validatedSlug.data, isActive: true },
+        include: productInclude,
+      })
+
+      return product ? normalizeProduct(product) : null
+    } catch (error) {
+      logStorefrontReadFailure('product detail', error)
+      return null
+    }
   },
 
   async getRelatedProducts(productId: string, categoryId: string | null, limit = 4) {
-    return runWithDemoFallback(
-      async () => {
-        const relatedProducts = await prisma.product.findMany({
-          where: {
-            isActive: true,
-            id: { not: productId },
-            categoryId,
-          },
-          take: limit,
-          include: {
-            category: true,
-            images: { orderBy: { sortOrder: 'asc' } },
-            variants: { where: { isActive: true } },
-          },
-        })
+    const validatedProductId = uuidSchema.safeParse(productId)
+    const validatedCategoryId = categoryId ? uuidSchema.safeParse(categoryId) : null
+    const safeLimit = Math.min(Math.max(limit, 1), 12)
 
-        return relatedProducts.map(normalizeProduct)
-      },
-      () => getMockRelatedProducts(productId, categoryId, limit),
-      (products) => products.length === 0
-    )
+    if (!validatedProductId.success || (validatedCategoryId && !validatedCategoryId.success)) {
+      return []
+    }
+
+    try {
+      const relatedProducts = await prisma.product.findMany({
+        where: {
+          isActive: true,
+          id: { not: validatedProductId.data },
+          categoryId: validatedCategoryId?.data ?? null,
+          category: { isActive: true },
+        },
+        take: safeLimit,
+        orderBy: { createdAt: 'desc' },
+        include: productInclude,
+      })
+
+      return relatedProducts.map(normalizeProduct)
+    } catch (error) {
+      logStorefrontReadFailure('related products', error)
+      return []
+    }
   },
 
   async getProductReviews(productId: string) {
-    return runWithDemoFallback(
-      async () => {
-        const reviews = await prisma.review.findMany({
-          where: { productId, isApproved: true },
-          orderBy: { createdAt: 'desc' },
-          include: {
-            user: { select: { fullName: true } },
-          },
-        })
+    const validatedProductId = uuidSchema.safeParse(productId)
+    if (!validatedProductId.success) {
+      return []
+    }
 
-        return reviews.map(normalizeReview)
-      },
-      () => getMockProductReviews(productId),
-      () => false
-    )
+    try {
+      const reviews = await prisma.review.findMany({
+        where: { productId: validatedProductId.data, isApproved: true },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { fullName: true } },
+        },
+      })
+
+      return reviews.map(normalizeReview)
+    } catch (error) {
+      logStorefrontReadFailure('product reviews', error)
+      return []
+    }
   },
 }

@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Header } from '@/components/layout/Header'
 import { CartStoreHydrator } from '@/components/providers/CartStoreHydrator'
 import { Toaster } from '@/components/ui/sonner'
+import { storefrontService } from '@/lib/storefront'
 import './globals.css'
 
 const bodyFont = Manrope({
@@ -25,7 +26,7 @@ const monoFont = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'BEPA | Auto Parts Storefront',
-  description: 'A polished auto-parts storefront with curated catalog design, stronger UX, and demo-safe rendering.',
+  description: 'A polished database-backed auto-parts storefront with curated catalog design and secure checkout.',
   keywords: ['auto parts', 'car parts', 'led headlights', 'batteries', 'brakes', 'filters', 'Georgia'],
 }
 
@@ -36,6 +37,7 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale()
   const messages = await getMessages()
+  const categories = await storefrontService.getCategories()
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -43,9 +45,9 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <CartStoreHydrator />
           <div className="relative flex min-h-screen flex-col">
-            <Header />
+            <Header categories={categories} />
             <main className="flex-1">{children}</main>
-            <Footer />
+            <Footer categories={categories} />
           </div>
           <Toaster />
         </NextIntlClientProvider>

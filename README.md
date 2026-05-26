@@ -1,6 +1,6 @@
 # BEPA Storefront
 
-BEPA is a Next.js auto-parts storefront with a customer catalog, cart, checkout, account pages, and a Supabase-backed admin area for products, categories, orders, and news.
+BEPA is a Next.js auto-parts storefront with a database-backed catalog, cart, real checkout, account pages, and a Supabase-backed admin area for products, categories, orders, and news.
 
 ## Stack
 
@@ -17,18 +17,18 @@ BEPA is a Next.js auto-parts storefront with a customer catalog, cart, checkout,
 npm install
 ```
 
-2. Create a local environment file:
+2. Create a local environment file and fill in the required values:
 
 ```bash
 cp .env.example .env.local
 ```
 
-3. Fill in the Supabase and database values in `.env.local`.
-
-4. Generate Prisma client and run the app:
+3. Generate Prisma, push the schema, seed data, and run the app:
 
 ```bash
 npm run db:generate
+npm run db:push
+npm run db:seed
 npm run dev
 ```
 
@@ -38,31 +38,50 @@ Open [http://localhost:3000](http://localhost:3000).
 
 `NEXT_PUBLIC_APP_URL` is the public app URL used for local and deployed links.
 
-`BEPA_STOREFRONT_MODE` controls catalog behavior:
-- `demo`: use bundled demo catalog data.
-- `database`: require database-backed catalog data.
-- unset: try database first outside development, then fall back to demo data if catalog reads fail.
-
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY` configure browser-safe Supabase access.
 
-`SUPABASE_SERVICE_ROLE_KEY` is server-only and must never be exposed in client code.
+`SUPABASE_SERVICE_ROLE_KEY` is server-only. It is required for the seed script and admin Storage upload/delete actions and must never be exposed to client components.
 
-`DATABASE_URL` is used by the app runtime. `DIRECT_URL` is used by Prisma migration and schema commands.
+`NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET` or `SUPABASE_STORAGE_BUCKET` names the public bucket used for catalog, category, news, and admin images. The default is `BePa-PublicStorage`.
 
-## Database
+`DATABASE_URL` is used by the app runtime and seed script. `DIRECT_URL` is used by the schema bootstrap command when set. For Supabase projects on IPv4-only networks, use the Supavisor session pooler URL on port `5432` for these values.
 
-The Supabase SQL bootstrap is in `supabase/schema.sql`. The Prisma schema in `prisma/schema.prisma` mirrors the same tables and relationships.
+`BEPA_STOREFRONT_MODE=database` makes storefront database read failures throw instead of returning empty results. Runtime mock catalog data is not used.
+
+## Database And Storage
+
+The Supabase SQL bootstrap is in `supabase/schema.sql`. `npm run db:push` applies that SQL directly because the database intentionally references Supabase-managed `auth.users`; Prisma Client is still generated from `prisma/schema.prisma` and used for application queries.
+
+The storefront reads active categories/products, product images, variants, published news, and approved reviews from Postgres through Prisma. Header and footer navigation categories are fetched server-side and passed into client components.
+
+Create one public Supabase Storage bucket matching `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET`. The seed script uploads generated PNG images under:
+
+- `seed/products/`
+- `seed/categories/`
+- `seed/news/`
+
+Admin uploads are generated server-side under `admin/products/`, `admin/categories/`, and `admin/news/`. Uploaded files are validated server-side as JPEG, PNG, WebP, or AVIF and limited to 5 MB.
 
 Useful commands:
 
 ```bash
 npm run db:generate
 npm run db:push
-npm run db:migrate
+npm run db:seed
+npm run db:counts
+npm run security:check
 npm run db:studio
 ```
 
-Create public Supabase Storage buckets named `products`, `categories`, and `news` before using image uploads in the admin area.
+## Security Notes
+
+- Storefront DB access uses Prisma query builders, not unsafe raw SQL.
+- User/admin input is validated with Zod before writes.
+- Checkout rejects stale non-UUID cart IDs, re-fetches prices and stock server-side, verifies variant ownership, and decrements stock in a transaction.
+- Admin product, category, and news mutations are server actions guarded by `requireAdmin()`.
+- Rendering uses React text nodes; rich HTML rendering is not used.
+- Security headers, including CSP, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`, are set in the proxy.
+- Supabase RLS should remain enabled. Public policies should expose active catalog data and published news only; users should manage only their own profiles, wishlist, reviews, and orders; admin policies stay role-gated by `profiles.role = 'admin'`.
 
 ## Quality Checks
 

@@ -105,14 +105,18 @@ export function ProductArtwork({
   return (
     <div className="relative h-full w-full overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
-        <Image
-          src={mediaSrc}
-          alt={mediaAlt}
-          fill
-          className="animate-pan object-cover"
-          style={{ objectPosition: mediaPosition }}
-          sizes={compact ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 1024px) 100vw, 60vw'}
-        />
+        {mediaSrc ? (
+          <Image
+            src={mediaSrc}
+            alt={mediaAlt}
+            fill
+            className="animate-pan object-cover"
+            style={{ objectPosition: mediaPosition }}
+            sizes={compact ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 1024px) 100vw, 60vw'}
+          />
+        ) : (
+          <div className={cn('h-full w-full bg-gradient-to-br', theme.gradient)} />
+        )}
       </div>
       <div className={cn('absolute inset-0 bg-gradient-to-br mix-blend-multiply', theme.gradient)} />
       <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(15,23,42,0.08),rgba(15,23,42,0.84)),radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.24),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(255,255,255,0.14),transparent_34%)]" />

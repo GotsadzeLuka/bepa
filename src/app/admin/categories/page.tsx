@@ -1,9 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { supabaseStorageBucket } from '@/lib/supabase/config'
-import { getCategoriesAdmin, createCategory, updateCategory, deleteCategory } from '@/app/admin/actions'
+import { useCallback, useEffect, useState } from 'react'
+import { getCategoriesAdmin, createCategory, updateCategory, deleteCategory, uploadAdminImage } from '@/app/admin/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,10 +24,10 @@ import {
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Loader2, ImageIcon } from 'lucide-react'
 import type { Category } from '@/types/database'
+import { getSafeImageSrc } from '@/lib/storefront-media'
 import Image from 'next/image'
 
 export default function CategoriesPage() {
-  const supabase = useMemo(() => createClient(), [])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -112,31 +110,14 @@ export default function CategoriesPage() {
     try {
       let imageUrl = editingCategory?.image_url || null
 
-      // Upload image if selected (using Supabase storage on client)
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop()
-        const fileName = `categories/${formData.slug}-${Date.now()}.${fileExt}`
-
-        const { error: uploadError } = await supabase.storage
-          .from(supabaseStorageBucket)
-          .upload(fileName, imageFile)
-
-        if (uploadError) {
-          toast.error('Failed to upload image')
-          setFormLoading(false)
-          return
-        }
-
-        const { data: urlData } = supabase.storage
-          .from(supabaseStorageBucket)
-          .getPublicUrl(fileName)
-
-        imageUrl = urlData.publicUrl
+        const uploaded = await uploadAdminImage('categories', imageFile)
+        imageUrl = uploaded.publicUrl
       }
 
       const categoryData = {
         ...formData,
-        imageUrl: imageUrl || undefined,
+        imageUrl: imageUrl || null,
       }
 
       if (editingCategory) {
@@ -266,11 +247,11 @@ export default function CategoriesPage() {
               <div className="space-y-2">
                 <Label className="text-zinc-200">Image</Label>
                 <div className="flex items-center gap-4">
-                  {editingCategory?.image_url && !imageFile && (
+                  {getSafeImageSrc(editingCategory?.image_url) && !imageFile && (
                     <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-zinc-800">
                       <Image
-                        src={editingCategory.image_url}
-                        alt={editingCategory.name_en}
+                        src={getSafeImageSrc(editingCategory?.image_url) ?? ''}
+                        alt={editingCategory?.name_en ?? 'Category image'}
                         fill
                         className="object-cover"
                       />
@@ -278,7 +259,7 @@ export default function CategoriesPage() {
                   )}
                   <Input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/avif"
                     onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                     className="bg-zinc-800 border-zinc-700 text-white"
                   />
@@ -342,10 +323,10 @@ export default function CategoriesPage() {
               categories.map((category) => (
                 <TableRow key={category.id} className="border-zinc-800 hover:bg-zinc-900">
                   <TableCell>
-                    {category.image_url ? (
+                    {getSafeImageSrc(category.image_url) ? (
                       <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-zinc-800">
                         <Image
-                          src={category.image_url}
+                          src={getSafeImageSrc(category.image_url) ?? ''}
                           alt={category.name_en}
                           fill
                           className="object-cover"

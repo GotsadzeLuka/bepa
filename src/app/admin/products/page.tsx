@@ -1,8 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { supabaseStorageBucket } from '@/lib/supabase/config'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  createProduct,
+  deleteProduct,
+  deleteProductImage,
+  getCategoriesAdmin,
+  getProductsAdmin,
+  syncProductVariants,
+  updateProduct,
+  uploadProductImages,
+} from '@/app/admin/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +40,7 @@ import {
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Loader2, ImageIcon, X } from 'lucide-react'
 import type { Category, Product, ProductImage, ProductVariant } from '@/types/database'
+import { getSafeImageSrc } from '@/lib/storefront-media'
 import Image from 'next/image'
 
 interface ProductWithRelations extends Product {
@@ -43,7 +52,6 @@ interface ProductWithRelations extends Product {
 type VariantDraft = Pick<ProductVariant, 'name_en' | 'name_ka' | 'sku' | 'price' | 'stock' | 'is_active'>
 
 export default function ProductsPage() {
-  const supabase = useMemo(() => createClient(), [])
   const [products, setProducts] = useState<ProductWithRelations[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,32 +78,24 @@ export default function ProductsPage() {
   })
 
   const fetchProducts = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        *,
-        category:categories(*),
-        images:product_images(*),
-        variants:product_variants(*)
-      `)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      toast.error('Failed to fetch products')
-    } else {
+    try {
+      const data = await getProductsAdmin()
       setProducts((data as unknown as ProductWithRelations[]) || [])
+    } catch {
+      toast.error('Failed to fetch products')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }, [supabase])
+  }, [])
 
   const fetchCategories = useCallback(async () => {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('name_en')
-    setCategories((data as unknown as Category[]) || [])
-  }, [supabase])
+    try {
+      const data = await getCategoriesAdmin()
+      setCategories((data as unknown as Category[]).filter((category) => category.is_active))
+    } catch {
+      toast.error('Failed to fetch categories')
+    }
+  }, [])
 
   useEffect(() => {
     fetchProducts()
@@ -133,7 +133,7 @@ export default function ProductsPage() {
   const openEditDialog = (product: ProductWithRelations) => {
     setEditingProduct(product)
     setFormData({
-      category_id: product.category_id,
+      category_id: product.category_id || '',
       name_en: product.name_en,
       name_ka: product.name_ka,
       slug: product.slug,
@@ -182,64 +182,42 @@ export default function ProductsPage() {
     setFormLoading(true)
 
     try {
-      // Create/update product
       let productId = editingProduct?.id
+      const productData = {
+        categoryId: formData.category_id || null,
+        nameEn: formData.name_en,
+        nameKa: formData.name_ka,
+        slug: formData.slug,
+        descriptionEn: formData.description_en || null,
+        descriptionKa: formData.description_ka || null,
+        price: formData.price,
+        salePrice: formData.sale_price,
+        sku: formData.sku || null,
+        stock: formData.stock,
+        isActive: formData.is_active,
+        isFeatured: formData.is_featured,
+      }
 
       if (editingProduct) {
-        const { error } = await supabase
-          .from('products')
-          .update(formData)
-          .eq('id', editingProduct.id)
-        if (error) throw error
+        await updateProduct(editingProduct.id, productData)
       } else {
-        const { data, error } = await supabase
-          .from('products')
-          .insert(formData)
-          .select()
-          .single()
-        if (error) throw error
-        productId = data.id
+        const product = await createProduct(productData)
+        productId = product.id
       }
 
-      // Upload new images
       if (imageFiles.length > 0 && productId) {
-        for (let i = 0; i < imageFiles.length; i++) {
-          const file = imageFiles[i]
-          const fileExt = file.name.split('.').pop()
-          const fileName = `products/${productId}-${Date.now()}-${i}.${fileExt}`
-
-          const { error: uploadError } = await supabase.storage
-            .from(supabaseStorageBucket)
-            .upload(fileName, file)
-
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage
-              .from(supabaseStorageBucket)
-              .getPublicUrl(fileName)
-
-            await supabase.from('product_images').insert({
-              product_id: productId,
-              url: urlData.publicUrl,
-              sort_order: existingImages.length + i,
-            })
-          }
-        }
+        await uploadProductImages(productId, imageFiles)
       }
 
-      // Handle variants
       if (productId) {
-        // Delete existing variants and recreate
-        if (editingProduct) {
-          await supabase.from('product_variants').delete().eq('product_id', productId)
-        }
-
-        if (variants.length > 0) {
-          const variantData = variants.map(v => ({
-            ...v,
-            product_id: productId,
-          }))
-          await supabase.from('product_variants').insert(variantData)
-        }
+        await syncProductVariants(productId, variants.map((variant) => ({
+          nameEn: variant.name_en,
+          nameKa: variant.name_ka,
+          sku: variant.sku,
+          price: variant.price,
+          stock: variant.stock,
+          isActive: variant.is_active,
+        })))
       }
 
       toast.success(editingProduct ? 'Product updated successfully' : 'Product created successfully')
@@ -256,20 +234,21 @@ export default function ProductsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return
 
-    const { error } = await supabase.from('products').delete().eq('id', id)
-
-    if (error) {
-      toast.error('Failed to delete product')
-    } else {
+    try {
+      await deleteProduct(id)
       toast.success('Product deleted')
       fetchProducts()
+    } catch {
+      toast.error('Failed to delete product')
     }
   }
 
   const removeExistingImage = async (imageId: string) => {
-    const { error } = await supabase.from('product_images').delete().eq('id', imageId)
-    if (!error) {
+    try {
+      await deleteProductImage(imageId)
       setExistingImages(existingImages.filter(img => img.id !== imageId))
+    } catch {
+      toast.error('Failed to remove image')
     }
   }
 
@@ -441,7 +420,13 @@ export default function ProductsPage() {
                   <div className="flex gap-2 flex-wrap">
                     {existingImages.map((img) => (
                       <div key={img.id} className="relative h-20 w-20 rounded-lg overflow-hidden bg-zinc-800">
-                        <Image src={img.url} alt="" fill className="object-cover" />
+                        {getSafeImageSrc(img.url) ? (
+                          <Image src={getSafeImageSrc(img.url) ?? ''} alt="" fill className="object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <ImageIcon className="h-5 w-5 text-zinc-600" />
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => removeExistingImage(img.id)}
@@ -455,7 +440,7 @@ export default function ProductsPage() {
                 )}
                 <Input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
                   multiple
                   onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
                   className="bg-zinc-800 border-zinc-700 text-white"
@@ -593,10 +578,10 @@ export default function ProductsPage() {
               products.map((product) => (
                 <TableRow key={product.id} className="border-zinc-800 hover:bg-zinc-900">
                   <TableCell>
-                    {product.images?.[0]?.url ? (
+                    {getSafeImageSrc(product.images?.[0]?.url) ? (
                       <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-zinc-800">
                         <Image
-                          src={product.images[0].url}
+                          src={getSafeImageSrc(product.images[0].url) ?? ''}
                           alt={product.name_en}
                           fill
                           className="object-cover"

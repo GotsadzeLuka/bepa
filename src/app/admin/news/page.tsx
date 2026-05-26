@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Plus, Pencil, Trash2, Newspaper, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -24,8 +24,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { createClient } from '@/lib/supabase/client'
-import { supabaseStorageBucket } from '@/lib/supabase/config'
+import { createNews, deleteNews, getNewsAdmin, updateNews, uploadAdminImage } from '@/app/admin/actions'
+import { getSafeImageSrc } from '@/lib/storefront-media'
 import { toast } from 'sonner'
 
 interface NewsItem {
@@ -40,12 +40,11 @@ interface NewsItem {
 }
 
 export default function AdminNewsPage() {
-  const supabase = useMemo(() => createClient(), [])
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -56,19 +55,16 @@ export default function AdminNewsPage() {
   })
 
   const fetchNews = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('news')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) {
+    try {
+      const data = await getNewsAdmin()
+      setNews((data as unknown as NewsItem[]) || [])
+    } catch (error) {
       toast.error('Failed to load news')
       console.error(error)
-    } else {
-      setNews(data || [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     fetchNews()
@@ -90,32 +86,8 @@ export default function AdminNewsPage() {
     })
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploading(true)
-
-    try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}.${fileExt}`
-      const filePath = `news/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from(supabaseStorageBucket)
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data } = supabase.storage.from(supabaseStorageBucket).getPublicUrl(filePath)
-      setFormData({ ...formData, image_url: data.publicUrl })
-      toast.success('Image uploaded')
-    } catch (error) {
-      console.error('Upload error:', error)
-      toast.error('Failed to upload image')
-    } finally {
-      setUploading(false)
-    }
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImageFile(e.target.files?.[0] || null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,32 +99,31 @@ export default function AdminNewsPage() {
     }
 
     try {
-      if (editingNews) {
-        const { error } = await supabase
-          .from('news')
-          .update({
-            title: formData.title,
-            slug: formData.slug,
-            excerpt: formData.excerpt || null,
-            content: formData.content || null,
-            image_url: formData.image_url || null,
-            is_published: formData.is_published,
-          })
-          .eq('id', editingNews.id)
+      let imageUrl = formData.image_url || null
+      if (imageFile) {
+        const uploaded = await uploadAdminImage('news', imageFile)
+        imageUrl = uploaded.publicUrl
+      }
 
-        if (error) throw error
-        toast.success('News updated')
-      } else {
-        const { error } = await supabase.from('news').insert({
+      if (editingNews) {
+        await updateNews(editingNews.id, {
           title: formData.title,
           slug: formData.slug,
           excerpt: formData.excerpt || null,
           content: formData.content || null,
-          image_url: formData.image_url || null,
-          is_published: formData.is_published,
+          imageUrl,
+          isPublished: formData.is_published,
         })
-
-        if (error) throw error
+        toast.success('News updated')
+      } else {
+        await createNews({
+          title: formData.title,
+          slug: formData.slug,
+          excerpt: formData.excerpt || null,
+          content: formData.content || null,
+          imageUrl,
+          isPublished: formData.is_published,
+        })
         toast.success('News created')
       }
 
@@ -182,9 +153,7 @@ export default function AdminNewsPage() {
     if (!confirm('Are you sure you want to delete this news item?')) return
 
     try {
-      const { error } = await supabase.from('news').delete().eq('id', id)
-      if (error) throw error
-
+      await deleteNews(id)
       toast.success('News deleted')
       fetchNews()
     } catch (error) {
@@ -203,6 +172,7 @@ export default function AdminNewsPage() {
       image_url: '',
       is_published: true,
     })
+    setImageFile(null)
   }
 
   return (
@@ -286,10 +256,10 @@ export default function AdminNewsPage() {
               <div>
                 <Label>Image</Label>
                 <div className="mt-2 flex gap-4">
-                  {formData.image_url && (
+                  {getSafeImageSrc(formData.image_url) && (
                     <div className="relative h-32 w-48 rounded-lg overflow-hidden">
                       <Image
-                        src={formData.image_url}
+                        src={getSafeImageSrc(formData.image_url) ?? ''}
                         alt="Preview"
                         fill
                         className="object-cover"
@@ -299,13 +269,12 @@ export default function AdminNewsPage() {
                   <div>
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
                       onChange={handleImageUpload}
-                      disabled={uploading}
                     />
-                    {uploading && (
+                    {imageFile && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Uploading...
+                        Selected: {imageFile.name}
                       </p>
                     )}
                   </div>
@@ -375,9 +344,9 @@ export default function AdminNewsPage() {
                 <TableRow key={item.id}>
                   <TableCell>
                     <div className="relative h-12 w-16 rounded overflow-hidden bg-zinc-100">
-                      {item.image_url ? (
+                      {getSafeImageSrc(item.image_url) ? (
                         <Image
-                          src={item.image_url}
+                          src={getSafeImageSrc(item.image_url) ?? ''}
                           alt={item.title}
                           fill
                           className="object-cover"

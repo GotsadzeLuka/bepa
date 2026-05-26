@@ -1,47 +1,9 @@
 import type { StoreCategory, StoreProduct, StoreProductImage } from '@/lib/catalog'
 
 type MediaDescriptor = {
-  src: string
+  src: string | null
   alt: string
   objectPosition?: string
-}
-
-const CATEGORY_MEDIA: Record<string, MediaDescriptor> = {
-  lighting: {
-    src: '/storefront/categories/lighting.svg',
-    alt: 'Premium automotive lighting components arranged in a night-driving scene.',
-    objectPosition: 'center',
-  },
-  batteries: {
-    src: '/storefront/categories/batteries.svg',
-    alt: 'Performance battery rendered in a premium green workshop scene.',
-    objectPosition: 'center',
-  },
-  brakes: {
-    src: '/storefront/categories/brakes.svg',
-    alt: 'Brake rotor and caliper rendered in a premium performance scene.',
-    objectPosition: 'center',
-  },
-  filters: {
-    src: '/storefront/categories/filters.svg',
-    alt: 'Air and cabin filter rendered in a cool-toned maintenance scene.',
-    objectPosition: 'center',
-  },
-  'oils-fluids': {
-    src: '/storefront/categories/oils-fluids.svg',
-    alt: 'Engine oil and workshop fluid rendered in a warm service-bay scene.',
-    objectPosition: 'center',
-  },
-  accessories: {
-    src: '/storefront/categories/accessories.svg',
-    alt: 'Driving accessories and dashboard tech rendered in a premium cockpit scene.',
-    objectPosition: 'center',
-  },
-  default: {
-    src: '/storefront/categories/lighting.svg',
-    alt: 'Editorial automotive category artwork.',
-    objectPosition: 'center',
-  },
 }
 
 const PRODUCT_MEDIA: Record<string, Partial<MediaDescriptor>> = {
@@ -60,37 +22,46 @@ function sortProductImages(images: StoreProductImage[]) {
   return [...images].sort((left, right) => left.sortOrder - right.sortOrder)
 }
 
+export function getSafeImageSrc(value: string | null | undefined) {
+  if (!value) return null
+
+  if (value.startsWith('/') && !value.startsWith('//')) {
+    return value
+  }
+
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.username || url.password) {
+      return null
+    }
+
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
 export function getCategoryMedia(category?: Pick<StoreCategory, 'slug' | 'nameEn' | 'imageUrl'> | string | null) {
-  if (typeof category === 'string') {
-    return CATEGORY_MEDIA[category] ?? CATEGORY_MEDIA.default
-  }
-
-  const fallback = CATEGORY_MEDIA[category?.slug ?? ''] ?? CATEGORY_MEDIA.default
-
-  if (!category) {
-    return fallback
-  }
+  const name = typeof category === 'string' ? category : category?.nameEn
+  const src = typeof category === 'string' ? null : getSafeImageSrc(category?.imageUrl)
 
   return {
-    ...fallback,
-    alt: category.nameEn ? `${category.nameEn} category artwork` : fallback.alt,
-    src: category.imageUrl ?? fallback.src,
-  }
+    alt: name ? `${name} category image` : 'Automotive category image',
+    objectPosition: 'center',
+    src,
+  } satisfies MediaDescriptor
 }
 
 export function getProductMedia(
   product: Pick<StoreProduct, 'slug' | 'nameEn' | 'images' | 'category'>
 ) {
-  const fallback = {
-    ...getCategoryMedia(product.category),
-    ...(PRODUCT_MEDIA[product.slug] ?? {}),
-  }
-
-  const primaryImage = sortProductImages(product.images)[0]?.url ?? null
+  const categoryMedia = getCategoryMedia(product.category)
+  const primaryImage = getSafeImageSrc(sortProductImages(product.images)[0]?.url)
 
   return {
-    ...fallback,
-    alt: product.nameEn || fallback.alt,
-    src: primaryImage ?? fallback.src,
-  }
+    ...categoryMedia,
+    ...(PRODUCT_MEDIA[product.slug] ?? {}),
+    alt: product.nameEn || categoryMedia.alt,
+    src: primaryImage ?? categoryMedia.src,
+  } satisfies MediaDescriptor
 }

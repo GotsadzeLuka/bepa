@@ -3,10 +3,13 @@
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowUpRight, Facebook, Instagram, Mail, MapPin, Phone } from 'lucide-react'
-import { getCategoryName } from '@/lib/catalog'
-import { mockCategories } from '@/lib/mock-data'
+import { getCategoryName, type StoreCategory } from '@/lib/catalog'
 
-export function Footer() {
+interface FooterProps {
+  categories: StoreCategory[]
+}
+
+export function Footer({ categories }: FooterProps) {
   const locale = useLocale()
   const t = useTranslations('footer')
   const tc = useTranslations('common')
@@ -94,7 +97,7 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-white">{tc('categories')}</h3>
             <ul className="mt-4 space-y-3 text-sm">
-              {mockCategories.slice(0, 5).map((category) => (
+              {categories.slice(0, 5).map((category) => (
                 <li key={category.id}>
                   <Link href={`/products?category=${category.slug}`} className="transition-colors hover:text-white">
                     {getCategoryName(category, locale)}

@@ -192,14 +192,20 @@ export default async function HomePage() {
                         style={{ animationDelay: `${220 + index * 80}ms` }}
                       >
                         <div className="relative min-h-[11rem]">
-                          <Image
-                            src={media.src}
-                            alt={media.alt}
-                            fill
-                            className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
-                            style={{ objectPosition: media.objectPosition }}
-                            sizes="(max-width: 640px) 100vw, 50vw"
-                          />
+                          {media.src ? (
+                            <Image
+                              src={media.src}
+                              alt={media.alt}
+                              fill
+                              className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
+                              style={{ objectPosition: media.objectPosition }}
+                              sizes="(max-width: 640px) 100vw, 50vw"
+                            />
+                          ) : (
+                            <div className="flex h-full min-h-[11rem] w-full items-center justify-center bg-slate-900 text-white/30">
+                              <Shield className="h-12 w-12" />
+                            </div>
+                          )}
                           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.04),rgba(15,23,42,0.74)_100%)]" />
                           <div className="absolute inset-x-4 bottom-4 rounded-[1.35rem] border border-white/12 bg-black/22 p-4 backdrop-blur-md">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/68">
@@ -312,14 +318,20 @@ export default async function HomePage() {
                 style={{ animationDelay: `${120 + index * 80}ms` }}
               >
                 <div className="relative aspect-[1.18] overflow-hidden">
-                  <Image
-                    src={media.src}
-                    alt={media.alt}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
-                    style={{ objectPosition: media.objectPosition }}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  />
+                  {media.src ? (
+                    <Image
+                      src={media.src}
+                      alt={media.alt}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
+                      style={{ objectPosition: media.objectPosition }}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-slate-900 text-white/30">
+                      <Shield className="h-14 w-14" />
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.08)_38%,rgba(15,23,42,0.84)_100%)]" />
                   <div className="absolute left-5 top-5 rounded-full border border-white/18 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/88 backdrop-blur-md">
                     {categoryCounts[category.slug] ?? 0} {tc('items')}
@@ -358,14 +370,20 @@ export default async function HomePage() {
                 style={{ animationDelay: `${140 + index * 90}ms` }}
               >
                 <div className="relative aspect-[1.08]">
-                  <Image
-                    src={media.src}
-                    alt={media.alt}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-[1.08]"
-                    style={{ objectPosition: media.objectPosition }}
-                    sizes="(max-width: 1024px) 100vw, 33vw"
-                  />
+                  {media.src ? (
+                    <Image
+                      src={media.src}
+                      alt={media.alt}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.08]"
+                      style={{ objectPosition: media.objectPosition }}
+                      sizes="(max-width: 1024px) 100vw, 33vw"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-slate-900 text-white/30">
+                      <Shield className="h-14 w-14" />
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.16)_34%,rgba(15,23,42,0.9)_100%)]" />
                   <div className="absolute inset-x-5 top-5">
                     <span className="rounded-full border border-white/18 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/90 backdrop-blur-md">

@@ -12,6 +12,7 @@
 
 import { prisma } from '@/lib/db'
 import type { OrderStatus, Prisma } from '@prisma/client'
+import { slugSchema } from '@/lib/validations'
 import type {
   ProductFilterInput,
   CreateProductInput,
@@ -23,8 +24,6 @@ import type {
   CreateNewsInput,
   UpdateNewsInput,
 } from '@/lib/validations'
-
-const isNextProductionBuild = process.env.NEXT_PHASE === 'phase-production-build'
 
 // =====================================================
 // PRODUCT QUERIES
@@ -557,10 +556,6 @@ export const newsService = {
    * Get published news.
    */
   async getPublishedNews() {
-    if (isNextProductionBuild) {
-      return []
-    }
-
     try {
       return await prisma.news.findMany({
         where: { isPublished: true },
@@ -588,13 +583,14 @@ export const newsService = {
    * Get news by slug.
    */
   async getNewsBySlug(slug: string) {
-    if (isNextProductionBuild) {
+    const validatedSlug = slugSchema.safeParse(slug)
+    if (!validatedSlug.success) {
       return null
     }
 
     try {
       return await prisma.news.findFirst({
-        where: { slug, isPublished: true },
+        where: { slug: validatedSlug.data, isPublished: true },
       })
     } catch (error) {
       console.warn('[news] Unable to load news item from database.')
@@ -666,15 +662,6 @@ export const adminStatsService = {
    * Get dashboard stats.
    */
   async getDashboardStats() {
-    if (isNextProductionBuild) {
-      return {
-        productsCount: 0,
-        categoriesCount: 0,
-        ordersCount: 0,
-        customersCount: 0,
-      }
-    }
-
     try {
       const [productsCount, categoriesCount, ordersCount, customersCount] = await Promise.all([
         prisma.product.count(),
@@ -708,10 +695,6 @@ export const adminStatsService = {
    * Get recent orders for admin dashboard.
    */
   async getRecentOrders(limit = 5) {
-    if (isNextProductionBuild) {
-      return []
-    }
-
     try {
       return await prisma.order.findMany({
         orderBy: { createdAt: 'desc' },

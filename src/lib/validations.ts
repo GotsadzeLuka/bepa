@@ -23,6 +23,18 @@ export const slugSchema = z.string()
 
 export const emailSchema = z.string().email('Invalid email address')
 
+export const safeImageUrlSchema = z.string()
+  .url('Invalid image URL')
+  .max(2048, 'Image URL too long')
+  .refine((value) => {
+    try {
+      const url = new URL(value)
+      return url.protocol === 'https:' && !url.username && !url.password
+    } catch {
+      return false
+    }
+  }, 'Image URL must be a safe HTTPS URL')
+
 // Georgian phone number validation
 // Accepts: +995 5XX XXX XXX, 995 5XXXXXXXX, 5XX XXX XXX, 5XXXXXXXX
 // Mobile numbers start with 5, landlines with area codes (32 for Tbilisi, etc.)
@@ -75,7 +87,7 @@ export const productFilterSchema = z.object({
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().positive().optional(),
   sort: z.enum(['newest', 'price-asc', 'price-desc', 'name']).optional(),
-  page: z.coerce.number().int().positive().default(1),
+  page: z.coerce.number().int().positive().max(500).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
@@ -83,12 +95,12 @@ export const createProductSchema = z.object({
   nameEn: z.string().min(1).max(200),
   nameKa: z.string().min(1).max(200),
   slug: slugSchema,
-  descriptionEn: z.string().max(5000).optional(),
-  descriptionKa: z.string().max(5000).optional(),
+  descriptionEn: z.string().max(5000).optional().nullable(),
+  descriptionKa: z.string().max(5000).optional().nullable(),
   price: z.coerce.number().positive('Price must be positive'),
   salePrice: z.coerce.number().positive().optional().nullable(),
   categoryId: uuidSchema.optional().nullable(),
-  sku: z.string().max(50).optional(),
+  sku: z.string().max(50).optional().nullable(),
   stock: z.coerce.number().int().min(0).default(0),
   isActive: z.coerce.boolean().default(true),
   isFeatured: z.coerce.boolean().default(false),
@@ -104,9 +116,9 @@ export const createCategorySchema = z.object({
   nameEn: z.string().min(1).max(100),
   nameKa: z.string().min(1).max(100),
   slug: slugSchema,
-  descriptionEn: z.string().max(500).optional(),
-  descriptionKa: z.string().max(500).optional(),
-  imageUrl: z.string().url().optional().nullable(),
+  descriptionEn: z.string().max(500).optional().nullable(),
+  descriptionKa: z.string().max(500).optional().nullable(),
+  imageUrl: safeImageUrlSchema.optional().nullable(),
   isActive: z.coerce.boolean().default(true),
   sortOrder: z.coerce.number().int().default(0),
 })
@@ -128,8 +140,8 @@ export const shippingAddressSchema = z.object({
 })
 
 export const orderItemSchema = z.object({
-  productId: z.string().min(1, 'Product is required').max(200),
-  variantId: z.string().min(1).max(200).optional().nullable(),
+  productId: uuidSchema,
+  variantId: uuidSchema.optional().nullable(),
   quantity: z.coerce.number().int().positive().max(100),
 })
 
@@ -168,13 +180,29 @@ export const wishlistItemSchema = z.object({
 export const createNewsSchema = z.object({
   title: z.string().min(1).max(200),
   slug: slugSchema,
-  excerpt: z.string().max(500).optional(),
-  content: z.string().max(50000).optional(),
-  imageUrl: z.string().url().optional().nullable(),
+  excerpt: z.string().max(500).optional().nullable(),
+  content: z.string().max(50000).optional().nullable(),
+  imageUrl: safeImageUrlSchema.optional().nullable(),
   isPublished: z.coerce.boolean().default(false),
 })
 
 export const updateNewsSchema = createNewsSchema.partial()
+
+export const productVariantInputSchema = z.object({
+  nameEn: z.string().min(1).max(120),
+  nameKa: z.string().min(1).max(120),
+  sku: z.string().max(50).optional().nullable(),
+  price: z.coerce.number().positive().max(1_000_000),
+  stock: z.coerce.number().int().min(0).max(1_000_000),
+  isActive: z.coerce.boolean().default(true),
+})
+
+export const productImageInputSchema = z.object({
+  productId: uuidSchema,
+  url: safeImageUrlSchema,
+  altText: z.string().max(200).optional().nullable(),
+  sortOrder: z.coerce.number().int().min(0).max(10_000).optional(),
+})
 
 // =====================================================
 // CONTACT SCHEMAS
@@ -232,3 +260,5 @@ export type WishlistItemInput = z.infer<typeof wishlistItemSchema>
 export type CreateNewsInput = z.infer<typeof createNewsSchema>
 export type UpdateNewsInput = z.infer<typeof updateNewsSchema>
 export type ContactFormInput = z.infer<typeof contactFormSchema>
+export type ProductVariantInput = z.infer<typeof productVariantInputSchema>
+export type ProductImageInput = z.infer<typeof productImageInputSchema>

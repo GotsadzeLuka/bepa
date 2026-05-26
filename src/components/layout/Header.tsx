@@ -27,11 +27,14 @@ import { Button } from '@/components/ui/button'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { createClient } from '@/lib/supabase/client'
 import { hasSupabaseConfig } from '@/lib/supabase/config'
-import { mockCategories } from '@/lib/mock-data'
-import { getCategoryName, normalizeCategory, type StoreCategory } from '@/lib/catalog'
+import { getCategoryName, type StoreCategory } from '@/lib/catalog'
 import { useCartStore } from '@/store/cart'
 
-export function Header() {
+interface HeaderProps {
+  categories: StoreCategory[]
+}
+
+export function Header({ categories }: HeaderProps) {
   const t = useTranslations('common')
   const locale = useLocale()
   const router = useRouter()
@@ -40,7 +43,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
-  const [categories, setCategories] = useState<StoreCategory[]>(mockCategories.slice(0, 6))
+  const navCategories = categories.slice(0, 6)
   const supabase = hasSupabaseConfig ? createClient() : null
 
   useEffect(() => {
@@ -69,25 +72,6 @@ export function Header() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase])
-
-  useEffect(() => {
-    if (!supabase) return
-
-    const fetchCategories = async () => {
-      const { data } = await supabase
-        .from('categories')
-        .select('id, name_en, name_ka, slug, image_url, description_en, description_ka, is_active, sort_order')
-        .eq('is_active', true)
-        .order('sort_order')
-        .limit(6)
-
-      if (data?.length) {
-        setCategories(data.map(normalizeCategory))
-      }
-    }
-
-    fetchCategories()
   }, [supabase])
 
   const handleSearch = (event: React.FormEvent) => {
@@ -179,7 +163,7 @@ export function Header() {
                         {t('categories')}
                       </p>
                       <div className="mt-3 space-y-1">
-                        {categories.map((category) => (
+                        {navCategories.map((category) => (
                           <SheetClose key={category.id} asChild>
                             <Link
                               href={`/products?category=${category.slug}`}
@@ -338,7 +322,7 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-60 rounded-2xl border-white/80 bg-white/95">
-                {categories.map((category) => (
+                {navCategories.map((category) => (
                   <DropdownMenuItem key={category.id} asChild>
                     <Link href={`/products?category=${category.slug}`}>
                       {getCategoryName(category, locale)}

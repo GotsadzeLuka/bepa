@@ -11,7 +11,7 @@ import {
   sortProductImages,
   type StoreProduct,
 } from '@/lib/catalog'
-import { getProductMedia } from '@/lib/storefront-media'
+import { getProductMedia, getSafeImageSrc } from '@/lib/storefront-media'
 
 interface ProductImagesProps {
   product: StoreProduct
@@ -22,7 +22,11 @@ export function ProductImages({ product }: ProductImagesProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   const sortedImages = sortProductImages(product.images)
-  const currentImage = sortedImages[selectedIndex]?.url ?? null
+  const safeImages = sortedImages.flatMap((image) => {
+    const url = getSafeImageSrc(image.url)
+    return url ? [{ ...image, url }] : []
+  })
+  const currentImage = safeImages[selectedIndex]?.url ?? null
   const productName = getProductName(product, locale)
   const categoryName = getCategoryName(product.category, locale)
   const fallbackMedia = getProductMedia(product)
@@ -51,9 +55,9 @@ export function ProductImages({ product }: ProductImagesProps) {
         )}
       </div>
 
-      {sortedImages.length > 1 && (
+      {safeImages.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-          {sortedImages.map((image, index) => (
+          {safeImages.map((image, index) => (
             <button
               key={image.id}
               onClick={() => setSelectedIndex(index)}
