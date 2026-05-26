@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useCallback, useEffect, useState } from 'react'
+import { getOrdersAdmin, updateOrderStatus } from '@/app/admin/actions'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -37,29 +37,8 @@ interface ShippingAddress {
   postalCode?: string
 }
 
-interface OrderItem {
-  id: string
-  order_id: string
-  product_id: string
-  variant_id: string | null
-  quantity: number
-  price: number
-  product?: {
-    name_en: string
-    name_ka: string
-  }
-}
-
-interface Order {
-  id: string
-  user_id: string | null
-  status: string
-  total: number
+type Order = Awaited<ReturnType<typeof getOrdersAdmin>>[number] & {
   shipping_address: ShippingAddress
-  notes: string | null
-  created_at: string
-  updated_at: string
-  items: OrderItem[]
 }
 
 const statusColors: Record<string, string> = {
@@ -72,48 +51,37 @@ const statusColors: Record<string, string> = {
 }
 
 export default function OrdersPage() {
-  const supabase = useMemo(() => createClient(), [])
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const fetchOrders = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        items:order_items(
-          *,
-          product:products(name_en, name_ka)
-        )
-      `)
-      .order('created_at', { ascending: false })
-
-    if (error) {
+    try {
+      const data = await getOrdersAdmin()
+      setOrders(data as Order[])
+    } catch (error) {
       toast.error('Failed to fetch orders')
       console.error(error)
-    } else {
-      setOrders((data as unknown as Order[]) || [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     void Promise.resolve().then(fetchOrders)
   }, [fetchOrders])
 
   const updateStatus = async (orderId: string, status: string) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', orderId)
-
-    if (error) {
-      toast.error('Failed to update status')
-    } else {
+    try {
+      await updateOrderStatus(
+        orderId,
+        status as 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+      )
       toast.success('Order status updated')
       fetchOrders()
+    } catch {
+      toast.error('Failed to update status')
     }
   }
 

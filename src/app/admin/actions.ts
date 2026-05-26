@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import type { Category, News, Product, ProductImage, ProductVariant } from '@prisma/client'
+import type { Category, News, Order, OrderItem, Product, ProductImage, ProductVariant, Profile, Review } from '@prisma/client'
 import prisma from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -114,6 +114,101 @@ function serializeNews(news: News) {
     is_published: news.isPublished,
     created_at: news.createdAt.toISOString(),
     updated_at: news.updatedAt.toISOString(),
+  }
+}
+
+function serializeProfile(profile: Profile) {
+  return {
+    id: profile.id,
+    email: profile.email,
+    full_name: profile.fullName,
+    phone: profile.phone,
+    address: profile.address,
+    role: profile.role,
+    created_at: profile.createdAt.toISOString(),
+    updated_at: profile.updatedAt.toISOString(),
+  }
+}
+
+function serializeOrderItem(
+  item: OrderItem & {
+    product: Product | null
+    variant?: ProductVariant | null
+  }
+) {
+  return {
+    id: item.id,
+    order_id: item.orderId,
+    product_id: item.productId,
+    variant_id: item.variantId,
+    quantity: item.quantity,
+    price: Number(item.price),
+    created_at: item.createdAt.toISOString(),
+    product: item.product
+      ? {
+          id: item.product.id,
+          name_en: item.product.nameEn,
+          name_ka: item.product.nameKa,
+          slug: item.product.slug,
+        }
+      : null,
+    variant: item.variant
+      ? {
+          id: item.variant.id,
+          name_en: item.variant.nameEn,
+          name_ka: item.variant.nameKa,
+          sku: item.variant.sku,
+        }
+      : null,
+  }
+}
+
+function serializeOrder(
+  order: Order & {
+    items: Array<OrderItem & { product: Product | null; variant?: ProductVariant | null }>
+    user: Profile | null
+  }
+) {
+  return {
+    id: order.id,
+    user_id: order.userId,
+    status: order.status,
+    total: Number(order.total),
+    shipping_address: order.shippingAddress,
+    notes: order.notes,
+    created_at: order.createdAt.toISOString(),
+    updated_at: order.updatedAt.toISOString(),
+    user: order.user ? serializeProfile(order.user) : null,
+    items: order.items.map(serializeOrderItem),
+  }
+}
+
+function serializeReview(
+  review: Review & {
+    product: Product
+    user: Profile
+  }
+) {
+  return {
+    id: review.id,
+    product_id: review.productId,
+    user_id: review.userId,
+    rating: review.rating,
+    comment: review.comment,
+    is_approved: review.isApproved,
+    created_at: review.createdAt.toISOString(),
+    updated_at: review.updatedAt.toISOString(),
+    product: {
+      id: review.product.id,
+      name_en: review.product.nameEn,
+      name_ka: review.product.nameKa,
+      slug: review.product.slug,
+    },
+    user: {
+      id: review.user.id,
+      email: review.user.email,
+      full_name: review.user.fullName,
+    },
   }
 }
 
@@ -636,17 +731,20 @@ export async function deleteNews(id: string) {
 export async function getOrdersAdmin() {
   await requireAdmin()
 
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
       items: {
         include: {
           product: true,
+          variant: true,
         },
       },
       user: true,
     },
   })
+
+  return orders.map(serializeOrder)
 }
 
 export async function updateOrderStatus(
@@ -660,11 +758,20 @@ export async function updateOrderStatus(
   const order = await prisma.order.update({
     where: { id: orderId },
     data: { status: validated.status },
+    include: {
+      items: {
+        include: {
+          product: true,
+          variant: true,
+        },
+      },
+      user: true,
+    },
   })
 
   revalidatePath('/admin/orders')
 
-  return order
+  return serializeOrder(order)
 }
 
 // =====================================================
@@ -674,13 +781,15 @@ export async function updateOrderStatus(
 export async function getReviewsAdmin() {
   await requireAdmin()
 
-  return prisma.review.findMany({
+  const reviews = await prisma.review.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
       product: true,
       user: true,
     },
   })
+
+  return reviews.map(serializeReview)
 }
 
 export async function approveReview(id: string) {
@@ -702,4 +811,18 @@ export async function deleteReview(id: string) {
   await prisma.review.delete({ where: { id: reviewId } })
 
   revalidatePath('/admin/reviews')
+}
+
+// =====================================================
+// CUSTOMER ACTIONS
+// =====================================================
+
+export async function getCustomersAdmin() {
+  await requireAdmin()
+
+  const customers = await prisma.profile.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return customers.map(serializeProfile)
 }
