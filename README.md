@@ -44,7 +44,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET` or `SUPABASE_STORAGE_BUCKET` names the public bucket used for catalog, category, news, and admin images. The default is `BePa-PublicStorage`.
 
-`DATABASE_URL` is used by the app runtime and seed script. `DIRECT_URL` is used by the schema bootstrap command when set. For Supabase projects on IPv4-only networks, use the Supavisor session pooler URL on port `5432` for these values.
+`DATABASE_URL` is used by the app runtime and seed script. `DIRECT_URL` is used by the schema bootstrap command when set. For Vercel/serverless deployments, use the Supavisor transaction pooler URL on port `6543` with `sslmode=require&uselibpqcompat=true`. For long-running local development, the session pooler on port `5432` also works.
+
+`DATABASE_POOL_MAX` optionally limits the Postgres pool size. Vercel defaults to `1` to avoid exhausting small Supabase pooler limits.
 
 `BEPA_STOREFRONT_MODE=database` makes storefront database read failures throw instead of returning empty results. Runtime mock catalog data is not used.
 

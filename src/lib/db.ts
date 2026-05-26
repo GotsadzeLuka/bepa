@@ -9,11 +9,18 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 
-// Create connection pool
+// Create connection pool. Supabase session pooler limits can be low on small
+// projects, and serverless functions multiply pools quickly.
 const connectionString = process.env.DATABASE_URL
+const maxConnections = Number(process.env.DATABASE_POOL_MAX ?? (process.env.VERCEL ? '1' : '5'))
 
 // Create pg connection pool
-const pool = new Pool({ connectionString })
+const pool = new Pool({
+  connectionString,
+  max: Number.isFinite(maxConnections) && maxConnections > 0 ? maxConnections : 1,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 10_000,
+})
 
 // Create Prisma adapter
 const adapter = new PrismaPg(pool)
