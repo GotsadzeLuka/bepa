@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Eye, Heart, ShoppingCart } from 'lucide-react'
+import { Check, Eye, Heart, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const locale = useLocale()
   const addItem = useCartStore((state) => state.addItem)
   const [wishlistPending, startWishlistTransition] = useTransition()
+  const [justAdded, setJustAdded] = useState(false)
 
   const name = getProductName(product, locale)
   const categoryName = getCategoryName(product.category, locale)
@@ -49,7 +50,9 @@ export function ProductCard({ product }: ProductCardProps) {
       image: imageUrl ?? undefined,
       quantity: 1,
     })
-    toast.success(`${t('addToCart')} ✓`)
+    setJustAdded(true)
+    window.setTimeout(() => setJustAdded(false), 1600)
+    toast.success(t('addedToCart'))
   }
 
   const handleAddToWishlist = () => {
@@ -64,7 +67,10 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <Card className="group h-full overflow-hidden rounded-[2rem] border-white/70 bg-white/88 py-0 shadow-[0_20px_58px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_32px_90px_-42px_rgba(15,23,42,0.58)]">
+    <Card
+      data-product-card
+      className="group h-full overflow-hidden rounded-[2rem] border-white/70 bg-white/88 py-0 shadow-[0_20px_58px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_32px_90px_-42px_rgba(15,23,42,0.58)]"
+    >
       <div className="relative aspect-[0.9] overflow-hidden bg-slate-950">
         <Link href={`/product/${product.slug}`} className="absolute inset-0">
           {imageUrl ? (
@@ -168,9 +174,10 @@ export function ProductCard({ product }: ProductCardProps) {
               className="w-full rounded-full px-4 sm:w-auto"
               onClick={handleAddToCart}
               disabled={product.stock === 0}
+              data-add-to-cart
             >
-              <ShoppingCart className="h-4 w-4" />
-              {t('addToCart')}
+              {justAdded ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+              {justAdded ? t('addedToCart') : t('addToCart')}
             </Button>
           </div>
         </div>

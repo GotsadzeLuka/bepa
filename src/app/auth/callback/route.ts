@@ -24,6 +24,27 @@ function getCookieRedirect(request: NextRequest) {
   }
 }
 
+function isAdminRedirect(next: string) {
+  return next === '/admin' || next.startsWith('/admin/')
+}
+
+function hasGoogleAuthProvider(user: { app_metadata?: Record<string, unknown> } | null) {
+  const metadata = user?.app_metadata ?? {}
+  const provider = metadata.provider
+  const providers = metadata.providers
+
+  return (
+    provider === 'google' ||
+    (!provider && Array.isArray(providers) && providers.includes('google'))
+  )
+}
+
+function getAuthFailureRedirect(requestUrl: URL, next: string, message: string) {
+  const redirectUrl = new URL(isAdminRedirect(next) ? '/admin/login' : '/login', requestUrl.origin)
+  redirectUrl.searchParams.set('error', message)
+  return redirectUrl
+}
+
 function redirectClearingOAuthCookie(url: URL) {
   const response = NextResponse.redirect(url)
   response.cookies.set(oauthNextCookieName, '', {
@@ -41,9 +62,9 @@ export async function GET(request: NextRequest) {
   const errorDescription = requestUrl.searchParams.get('error_description')
 
   if (errorCode || errorDescription) {
-    const redirectUrl = new URL('/login', requestUrl.origin)
-    redirectUrl.searchParams.set('error', errorDescription ?? 'Authentication failed')
-    return redirectClearingOAuthCookie(redirectUrl)
+    return redirectClearingOAuthCookie(
+      getAuthFailureRedirect(requestUrl, next, errorDescription ?? 'Authentication failed')
+    )
   }
 
   if (code) {
@@ -51,9 +72,34 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
-      const redirectUrl = new URL('/login', requestUrl.origin)
-      redirectUrl.searchParams.set('error', error.message)
-      return redirectClearingOAuthCookie(redirectUrl)
+      return redirectClearingOAuthCookie(getAuthFailureRedirect(requestUrl, next, error.message))
+    }
+
+    if (isAdminRedirect(next)) {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError || !user || !hasGoogleAuthProvider(user)) {
+        await supabase.auth.signOut()
+        return redirectClearingOAuthCookie(
+          getAuthFailureRedirect(requestUrl, next, 'Admin access requires Google OAuth.')
+        )
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.role !== 'admin') {
+        await supabase.auth.signOut()
+        return redirectClearingOAuthCookie(
+          getAuthFailureRedirect(requestUrl, next, 'Admin privileges are required.')
+        )
+      }
     }
   }
 

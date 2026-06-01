@@ -2,8 +2,7 @@ import type { Metadata } from 'next'
 import { JetBrains_Mono, Manrope, Space_Grotesk } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
-import { Footer } from '@/components/layout/Footer'
-import { Header } from '@/components/layout/Header'
+import { AppChrome } from '@/components/layout/AppChrome'
 import { CartStoreHydrator } from '@/components/providers/CartStoreHydrator'
 import { Toaster } from '@/components/ui/sonner'
 import { storefrontService } from '@/lib/storefront'
@@ -30,6 +29,8 @@ export const metadata: Metadata = {
   keywords: ['auto parts', 'car parts', 'led headlights', 'batteries', 'brakes', 'filters', 'Georgia'],
 }
 
+export const revalidate = 300
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -44,11 +45,7 @@ export default async function RootLayout({
       <body className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable} min-h-screen bg-background font-sans text-foreground antialiased`}>
         <NextIntlClientProvider messages={messages}>
           <CartStoreHydrator />
-          <div className="relative flex min-h-screen flex-col">
-            <Header categories={categories} />
-            <main className="flex-1">{children}</main>
-            <Footer categories={categories} />
-          </div>
+          <AppChrome categories={categories}>{children}</AppChrome>
           <Toaster />
         </NextIntlClientProvider>
       </body>

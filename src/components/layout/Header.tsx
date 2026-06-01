@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { createClient } from '@/lib/supabase/client'
@@ -130,6 +130,7 @@ export function Header({ categories }: HeaderProps) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[320px] border-r-white/70 bg-[#f6f3ee] p-0">
+                <SheetTitle className="sr-only">{t('menu')}</SheetTitle>
                 <div className="flex h-full flex-col">
                   <div className="border-b border-slate-200/80 px-5 py-5">
                     <Link href="/" className="font-display text-2xl font-black tracking-[0.18em] text-slate-950">

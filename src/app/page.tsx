@@ -29,6 +29,8 @@ const categoryIcons = {
   accessories: Shield,
 } as const
 
+export const revalidate = 300
+
 export default async function HomePage() {
   const locale = await getLocale()
   const t = await getTranslations('home')
@@ -126,37 +128,39 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <div className="glass-panel rounded-[2rem] p-4 sm:p-5">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {categories.slice(0, 3).map((category, index) => {
-                    const Icon = categoryIcons[category.slug as keyof typeof categoryIcons] ?? Shield
+              {categories.length > 0 && (
+                <div className="glass-panel rounded-[2rem] p-4 sm:p-5">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {categories.slice(0, 3).map((category, index) => {
+                      const Icon = categoryIcons[category.slug as keyof typeof categoryIcons] ?? Shield
 
-                    return (
-                      <Link
-                        key={category.id}
-                        href={`/products?category=${category.slug}`}
-                        className="group rounded-[1.5rem] border border-white/60 bg-white/70 p-4 transition-transform duration-300 hover:-translate-y-1"
-                        style={{ animationDelay: `${120 + index * 80}ms` }}
-                      >
-                        <div className="mb-3 flex items-center justify-between">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg">
-                            <Icon className="h-5 w-5" />
+                      return (
+                        <Link
+                          key={category.id}
+                          href={`/products?category=${category.slug}`}
+                          className="group rounded-[1.5rem] border border-white/60 bg-white/70 p-4 transition-transform duration-300 hover:-translate-y-1"
+                          style={{ animationDelay: `${120 + index * 80}ms` }}
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg">
+                              <Icon className="h-5 w-5" />
+                            </div>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                              {categoryCounts[category.slug] ?? 0} {tc('items')}
+                            </span>
                           </div>
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                            {categoryCounts[category.slug] ?? 0} {tc('items')}
-                          </span>
-                        </div>
-                        <h2 className="text-base font-semibold text-slate-950">
-                          {getCategoryName(category, locale)}
-                        </h2>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          {locale === 'ka' ? category.descriptionKa : category.descriptionEn}
-                        </p>
-                      </Link>
-                    )
-                  })}
+                          <h2 className="text-base font-semibold text-slate-950">
+                            {getCategoryName(category, locale)}
+                          </h2>
+                          <p className="mt-1 text-sm leading-6 text-slate-500">
+                            {locale === 'ka' ? category.descriptionKa : category.descriptionEn}
+                          </p>
+                        </Link>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]">

@@ -10,6 +10,8 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
+export const revalidate = 300
+
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params
   const t = await getTranslations('product')

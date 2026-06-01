@@ -3,6 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
+import { revalidateAdminCache, revalidateProductCache } from '@/lib/cache'
+import {
+  canCheckoutDemoCatalog,
+  createDemoOrder,
+  isDemoProductId,
+  isDemoVariantId,
+} from '@/lib/demo-catalog'
 import {
   createOrderSchema,
   createReviewSchema,
@@ -165,6 +172,7 @@ export async function createReview(data: {
     },
   })
 
+  revalidatePath('/admin/reviews')
   return review
 }
 
@@ -221,6 +229,22 @@ export async function createOrder(data: {
 
   const validated = createOrderSchema.parse(data)
   const authUser = await getAuthUser()
+  const containsDemoCatalogItems = validated.items.some(
+    (item) => isDemoProductId(item.productId) || (item.variantId ? isDemoVariantId(item.variantId) : false)
+  )
+
+  if (containsDemoCatalogItems) {
+    if (!canCheckoutDemoCatalog()) {
+      throw new Error('Preview catalog items cannot be checked out in production. Seed the database catalog first.')
+    }
+
+    return createDemoOrder({
+      items: validated.items,
+      shippingAddress: validated.shippingAddress,
+      notes: validated.notes,
+      userId: authUser?.id ?? null,
+    })
+  }
 
   const order = await prisma.$transaction(async (tx) => {
     const productIds = [...new Set(validated.items.map((item) => item.productId))]
@@ -240,6 +264,7 @@ export async function createOrder(data: {
         },
         select: {
           id: true,
+          slug: true,
           price: true,
           salePrice: true,
           stock: true,
@@ -344,6 +369,17 @@ export async function createOrder(data: {
     return order
   })
 
+  for (const productId of [...new Set(validated.items.map((item) => item.productId))]) {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, slug: true },
+    })
+    revalidateProductCache(product)
+  }
+
+  revalidateAdminCache()
+  revalidatePath('/admin')
+  revalidatePath('/admin/orders')
   revalidatePath('/account/orders')
   return order
 }

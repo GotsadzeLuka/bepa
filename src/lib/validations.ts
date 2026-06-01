@@ -91,7 +91,7 @@ export const productFilterSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
-export const createProductSchema = z.object({
+const productBaseSchema = z.object({
   nameEn: z.string().min(1).max(200),
   nameKa: z.string().min(1).max(200),
   slug: slugSchema,
@@ -106,7 +106,25 @@ export const createProductSchema = z.object({
   isFeatured: z.coerce.boolean().default(false),
 })
 
-export const updateProductSchema = createProductSchema.partial()
+export const createProductSchema = productBaseSchema.refine(
+  (product) => product.salePrice === null || product.salePrice === undefined || product.salePrice < product.price,
+  {
+    path: ['salePrice'],
+    message: 'Sale price must be lower than the regular price',
+  }
+)
+
+export const updateProductSchema = productBaseSchema.partial().refine(
+  (product) =>
+    product.price === undefined ||
+    product.salePrice === undefined ||
+    product.salePrice === null ||
+    product.salePrice < product.price,
+  {
+    path: ['salePrice'],
+    message: 'Sale price must be lower than the regular price',
+  }
+)
 
 // =====================================================
 // CATEGORY SCHEMAS

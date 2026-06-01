@@ -1,96 +1,26 @@
 'use client'
 
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { ShieldCheck } from 'lucide-react'
 
 export default function SettingsPage() {
-  const supabase = createClient()
-  const [loading, setLoading] = useState(false)
-  const [passwords, setPasswords] = useState({
-    newPassword: '',
-    confirmPassword: '',
-  })
-
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (passwords.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      return
-    }
-
-    if (passwords.newPassword !== passwords.confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
-
-    setLoading(true)
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwords.newPassword,
-      })
-
-      if (error) throw error
-
-      toast.success('Password updated successfully')
-      setPasswords({ newPassword: '', confirmPassword: '' })
-    } catch (error) {
-      console.error('Error updating password:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to update password')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">Settings</h2>
 
-      {/* Change Password */}
-      <div className="bg-zinc-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-        
-        <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6">
+        <div className="flex gap-3">
+          <ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-700" />
           <div>
-            <Label htmlFor="newPassword">New Password</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              value={passwords.newPassword}
-              onChange={(e) =>
-                setPasswords({ ...passwords, newPassword: e.target.value })
-              }
-              className="bg-white"
-              required
-              minLength={6}
-            />
+            <h3 className="text-lg font-semibold text-emerald-950">Google sign-in only</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-800">
+              Password credentials are disabled. Manage account access and recovery through the connected Google account.
+            </p>
           </div>
-          <div>
-            <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={passwords.confirmPassword}
-              onChange={(e) =>
-                setPasswords({ ...passwords, confirmPassword: e.target.value })
-              }
-              className="bg-white"
-              required
-              minLength={6}
-            />
-          </div>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Updating...' : 'Update Password'}
-          </Button>
-        </form>
+        </div>
       </div>
 
-      {/* Danger Zone */}
       <div className="mt-8 bg-red-50 border border-red-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-red-800 mb-2">Danger Zone</h3>
         <p className="text-sm text-red-600 mb-4">

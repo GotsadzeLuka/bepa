@@ -154,6 +154,7 @@ export function normalizeVariant(variant: unknown): StoreProductVariant {
 
 export function normalizeProduct(product: unknown): StoreProduct {
   const record = asRecord(product)
+  const rawSalePrice = record.salePrice ?? record.sale_price
 
   return {
     id: asString(record.id),
@@ -164,10 +165,7 @@ export function normalizeProduct(product: unknown): StoreProduct {
     descriptionEn: asOptionalString(record.descriptionEn ?? record.description_en),
     descriptionKa: asOptionalString(record.descriptionKa ?? record.description_ka),
     price: asNumber(record.price),
-    salePrice:
-      record.salePrice === null || record.sale_price === null
-        ? null
-        : asNumber(record.salePrice ?? record.sale_price),
+    salePrice: rawSalePrice === null || rawSalePrice === undefined ? null : asNumber(rawSalePrice),
     sku: asOptionalString(record.sku),
     stock: asNumber(record.stock),
     isActive: asBoolean(record.isActive ?? record.is_active, true),

@@ -17,6 +17,8 @@ interface Props {
   }>
 }
 
+export const revalidate = 300
+
 export default async function ProductsPage({ searchParams }: Props) {
   const t = await getTranslations('common')
   const locale = await getLocale()

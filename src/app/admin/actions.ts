@@ -5,6 +5,12 @@ import { revalidatePath } from 'next/cache'
 import type { Category, News, Order, OrderItem, Product, ProductImage, ProductVariant, Profile, Review } from '@prisma/client'
 import prisma from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
+import {
+  revalidateAdminCache,
+  revalidateCategoryCache,
+  revalidateNewsCache,
+  revalidateProductCache,
+} from '@/lib/cache'
 import { createAdminClient } from '@/lib/supabase/server'
 import { supabaseStorageBucket } from '@/lib/supabase/config'
 import {
@@ -287,11 +293,39 @@ async function deleteStorageObjectByPublicUrl(publicUrl: string | null | undefin
   }
 }
 
-function revalidateStorefrontProduct(product: Pick<Product, 'slug'>) {
+function assertSalePriceBelowPrice(price: number, salePrice: number | null | undefined) {
+  if (salePrice !== null && salePrice !== undefined && salePrice >= price) {
+    throw new Error('Sale price must be lower than the regular price.')
+  }
+}
+
+function revalidateStorefrontProduct(product: { id?: string | null; slug?: string | null }) {
+  revalidateProductCache(product)
+  revalidateAdminCache()
   revalidatePath('/admin/products')
   revalidatePath('/products')
-  revalidatePath(`/product/${product.slug}`)
+  if (product.slug) {
+    revalidatePath(`/product/${product.slug}`)
+  }
   revalidatePath('/')
+}
+
+function revalidateStorefrontCategory() {
+  revalidateCategoryCache()
+  revalidateAdminCache()
+  revalidatePath('/admin/categories')
+  revalidatePath('/products')
+  revalidatePath('/')
+}
+
+function revalidateStorefrontNews(news?: { slug?: string | null } | null) {
+  revalidateNewsCache(news)
+  revalidateAdminCache()
+  revalidatePath('/admin/news')
+  revalidatePath('/news')
+  if (news?.slug) {
+    revalidatePath(`/news/${news.slug}`)
+  }
 }
 
 // =====================================================
@@ -339,6 +373,7 @@ export async function createProduct(data: {
 }) {
   await requireAdmin()
   const validated = createProductSchema.parse(data)
+  assertSalePriceBelowPrice(validated.price, validated.salePrice)
 
   const product = await prisma.product.create({
     data: {
@@ -378,7 +413,21 @@ export async function updateProduct(
   await requireAdmin()
   const productId = uuidSchema.parse(id)
   const validated = updateProductSchema.parse(data)
-  const existing = await prisma.product.findUnique({ where: { id: productId }, select: { slug: true } })
+  const existing = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { slug: true, price: true, salePrice: true },
+  })
+
+  if (!existing) {
+    throw new Error('Product not found')
+  }
+
+  const nextPrice = validated.price ?? Number(existing.price)
+  const nextSalePrice =
+    validated.salePrice === undefined
+      ? existing.salePrice === null ? null : Number(existing.salePrice)
+      : validated.salePrice
+  assertSalePriceBelowPrice(nextPrice, nextSalePrice)
 
   const product = await prisma.product.update({
     where: { id: productId },
@@ -438,7 +487,10 @@ export async function createProductImage(data: {
       sortOrder: validated.sortOrder ?? 0,
     },
   })
-  const product = await prisma.product.findUnique({ where: { id: validated.productId }, select: { slug: true } })
+  const product = await prisma.product.findUnique({
+    where: { id: validated.productId },
+    select: { id: true, slug: true },
+  })
   if (product) revalidateStorefrontProduct(product)
 
   return serializeProductImage(image)
@@ -483,7 +535,7 @@ export async function deleteProductImage(id: string) {
   const imageId = uuidSchema.parse(id)
   const image = await prisma.productImage.findUnique({
     where: { id: imageId },
-    include: { product: { select: { slug: true } } },
+    include: { product: { select: { id: true, slug: true } } },
   })
 
   if (!image) return
@@ -508,7 +560,10 @@ export async function syncProductVariants(
   await requireAdmin()
   const validatedProductId = uuidSchema.parse(productId)
   const validatedVariants = variants.map((variant) => productVariantInputSchema.parse(variant))
-  const product = await prisma.product.findUnique({ where: { id: validatedProductId }, select: { slug: true } })
+  const product = await prisma.product.findUnique({
+    where: { id: validatedProductId },
+    select: { id: true, slug: true },
+  })
 
   if (!product) {
     throw new Error('Product not found')
@@ -570,9 +625,7 @@ export async function createCategory(data: {
     },
   })
 
-  revalidatePath('/admin/categories')
-  revalidatePath('/products')
-  revalidatePath('/')
+  revalidateStorefrontCategory()
 
   return serializeCategory(category)
 }
@@ -610,9 +663,7 @@ export async function updateCategory(
     await deleteStorageObjectByPublicUrl(existing.imageUrl)
   }
 
-  revalidatePath('/admin/categories')
-  revalidatePath('/products')
-  revalidatePath('/')
+  revalidateStorefrontCategory()
 
   return serializeCategory(category)
 }
@@ -627,9 +678,7 @@ export async function deleteCategory(id: string) {
   await prisma.category.delete({ where: { id: categoryId } })
   await deleteStorageObjectByPublicUrl(category.imageUrl)
 
-  revalidatePath('/admin/categories')
-  revalidatePath('/products')
-  revalidatePath('/')
+  revalidateStorefrontCategory()
 }
 
 // =====================================================
@@ -665,8 +714,7 @@ export async function createNews(data: {
     },
   })
 
-  revalidatePath('/admin/news')
-  revalidatePath('/news')
+  revalidateStorefrontNews(news)
 
   return serializeNews(news)
 }
@@ -700,10 +748,9 @@ export async function updateNews(
     await deleteStorageObjectByPublicUrl(existing.imageUrl)
   }
 
-  revalidatePath('/admin/news')
-  revalidatePath('/news')
-  revalidatePath(`/news/${news.slug}`)
+  revalidateStorefrontNews(news)
   if (existing?.slug && existing.slug !== news.slug) {
+    revalidateNewsCache(existing)
     revalidatePath(`/news/${existing.slug}`)
   }
 
@@ -720,8 +767,7 @@ export async function deleteNews(id: string) {
   await prisma.news.delete({ where: { id: newsId } })
   await deleteStorageObjectByPublicUrl(news.imageUrl)
 
-  revalidatePath('/admin/news')
-  revalidatePath('/news')
+  revalidateStorefrontNews(news)
 }
 
 // =====================================================
@@ -769,7 +815,10 @@ export async function updateOrderStatus(
     },
   })
 
+  revalidateAdminCache()
+  revalidatePath('/admin')
   revalidatePath('/admin/orders')
+  revalidatePath('/account/orders')
 
   return serializeOrder(order)
 }
@@ -796,20 +845,35 @@ export async function approveReview(id: string) {
   await requireAdmin()
   const reviewId = uuidSchema.parse(id)
 
-  await prisma.review.update({
+  const review = await prisma.review.update({
     where: { id: reviewId },
     data: { isApproved: true },
+    include: {
+      product: { select: { id: true, slug: true } },
+    },
   })
 
+  revalidateProductCache(review.product)
   revalidatePath('/admin/reviews')
+  revalidatePath(`/product/${review.product.slug}`)
 }
 
 export async function deleteReview(id: string) {
   await requireAdmin()
   const reviewId = uuidSchema.parse(id)
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+    include: {
+      product: { select: { id: true, slug: true } },
+    },
+  })
+
+  if (!review) return
 
   await prisma.review.delete({ where: { id: reviewId } })
 
+  revalidateProductCache(review.product)
+  revalidatePath(`/product/${review.product.slug}`)
   revalidatePath('/admin/reviews')
 }
 

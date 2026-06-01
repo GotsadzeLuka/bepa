@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { cacheTags, PUBLIC_CACHE_REVALIDATE_SECONDS } from '@/lib/cache'
 import {
   normalizeCategory,
   normalizeProduct,
@@ -7,6 +9,15 @@ import {
   type StoreProductFilters,
   type StoreProductResult,
 } from '@/lib/catalog'
+import {
+  canUseDemoCatalog,
+  demoCategories,
+  getDemoHomePageData,
+  getDemoProductBySlug,
+  getDemoProductReviews,
+  getDemoProducts,
+  getDemoRelatedProducts,
+} from '@/lib/demo-catalog'
 import { productFilterSchema, slugSchema, uuidSchema } from '@/lib/validations'
 
 const requireDatabaseStorefront = process.env.BEPA_STOREFRONT_MODE === 'database'
@@ -33,6 +44,21 @@ function emptyProductResult(filters: StoreProductFilters): StoreProductResult {
       totalPages: 1,
     },
   }
+}
+
+function shouldUseDemoFallback() {
+  return canUseDemoCatalog()
+}
+
+function resolveHomePageFallback() {
+  return shouldUseDemoFallback()
+    ? getDemoHomePageData()
+    : {
+        categories: [],
+        featuredProducts: [],
+        saleProducts: [],
+        latestProducts: [],
+      }
 }
 
 const productInclude = {
@@ -93,10 +119,10 @@ function buildProductWhere(filters: NonNullable<ReturnType<typeof parseProductFi
   return where
 }
 
-export const storefrontService = {
-  async getHomePageData() {
+const getCachedHomePageData = unstable_cache(
+  async () => {
     if (storefrontDemoMode) {
-      console.warn('[storefront] BEPA_STOREFRONT_MODE=demo is set, but bundled runtime mock data is disabled.')
+      return getDemoHomePageData()
     }
 
     try {
@@ -125,35 +151,163 @@ export const storefrontService = {
         }),
       ])
 
-      return {
+      const homePageData = {
         categories: categories.map(normalizeCategory),
         featuredProducts: featuredProducts.map(normalizeProduct),
         saleProducts: saleProducts.map(normalizeProduct),
         latestProducts: latestProducts.map(normalizeProduct),
       }
+
+      const hasRenderableCatalog =
+        homePageData.categories.length > 0 ||
+        homePageData.featuredProducts.length > 0 ||
+        homePageData.saleProducts.length > 0 ||
+        homePageData.latestProducts.length > 0
+
+      return hasRenderableCatalog ? homePageData : resolveHomePageFallback()
     } catch (error) {
       logStorefrontReadFailure('homepage data', error)
-      return {
-        categories: [],
-        featuredProducts: [],
-        saleProducts: [],
-        latestProducts: [],
-      }
+      return resolveHomePageFallback()
     }
   },
+  ['storefront-home'],
+  {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: [cacheTags.storefrontHome, cacheTags.storefrontCategories, cacheTags.storefrontProducts],
+  }
+)
 
-  async getCategories() {
+const getCachedCategories = unstable_cache(
+  async () => {
     try {
       const categories = await prisma.category.findMany({
         where: { isActive: true },
         orderBy: [{ sortOrder: 'asc' }, { nameEn: 'asc' }],
       })
 
-      return categories.map(normalizeCategory)
+      const normalizedCategories = categories.map(normalizeCategory)
+      return normalizedCategories.length > 0 || !shouldUseDemoFallback()
+        ? normalizedCategories
+        : demoCategories
     } catch (error) {
       logStorefrontReadFailure('categories', error)
-      return []
+      return shouldUseDemoFallback() ? demoCategories : []
     }
+  },
+  ['storefront-categories'],
+  {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: [cacheTags.storefrontCategories],
+  }
+)
+
+async function getProductsUncached(validatedFilters: NonNullable<ReturnType<typeof parseProductFilters>>) {
+  const page = validatedFilters.page
+  const limit = validatedFilters.limit
+  const skip = (page - 1) * limit
+  const where = buildProductWhere(validatedFilters)
+
+  try {
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        orderBy: getProductOrderBy(validatedFilters.sort),
+        skip,
+        take: limit,
+        include: productInclude,
+      }),
+      prisma.product.count({ where }),
+    ])
+
+    const normalizedProducts = products.map(normalizeProduct)
+    if (normalizedProducts.length === 0 && total === 0 && shouldUseDemoFallback()) {
+      return getDemoProducts(validatedFilters)
+    }
+
+    return {
+      products: normalizedProducts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    }
+  } catch (error) {
+    logStorefrontReadFailure('products', error)
+    return emptyProductResult(validatedFilters)
+  }
+}
+
+async function getProductBySlugUncached(validatedSlug: string) {
+  try {
+    const product = await prisma.product.findFirst({
+      where: { slug: validatedSlug, isActive: true },
+      include: productInclude,
+    })
+
+    if (product) {
+      return normalizeProduct(product)
+    }
+
+    return shouldUseDemoFallback() ? getDemoProductBySlug(validatedSlug) : null
+  } catch (error) {
+    logStorefrontReadFailure('product detail', error)
+    return shouldUseDemoFallback() ? getDemoProductBySlug(validatedSlug) : null
+  }
+}
+
+async function getRelatedProductsUncached(productId: string, categoryId: string | null, limit: number) {
+  try {
+    const relatedProducts = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        id: { not: productId },
+        categoryId,
+        category: { isActive: true },
+      },
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: productInclude,
+    })
+
+    const normalizedProducts = relatedProducts.map(normalizeProduct)
+    return normalizedProducts.length > 0 || !shouldUseDemoFallback()
+      ? normalizedProducts
+      : getDemoRelatedProducts(productId, categoryId, limit)
+  } catch (error) {
+    logStorefrontReadFailure('related products', error)
+    return shouldUseDemoFallback() ? getDemoRelatedProducts(productId, categoryId, limit) : []
+  }
+}
+
+async function getProductReviewsUncached(productId: string) {
+  try {
+    const reviews = await prisma.review.findMany({
+      where: { productId, isApproved: true },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { fullName: true } },
+      },
+    })
+
+    const normalizedReviews = reviews.map(normalizeReview)
+    return normalizedReviews.length > 0 || !shouldUseDemoFallback()
+      ? normalizedReviews
+      : getDemoProductReviews(productId)
+  } catch (error) {
+    logStorefrontReadFailure('product reviews', error)
+    return shouldUseDemoFallback() ? getDemoProductReviews(productId) : []
+  }
+}
+
+export const storefrontService = {
+  async getHomePageData() {
+    return getCachedHomePageData()
+  },
+
+  async getCategories() {
+    return getCachedCategories()
   },
 
   async getProducts(filters: StoreProductFilters) {
@@ -162,36 +316,14 @@ export const storefrontService = {
       return emptyProductResult(filters)
     }
 
-    const page = validatedFilters.page
-    const limit = validatedFilters.limit
-    const skip = (page - 1) * limit
-    const where = buildProductWhere(validatedFilters)
-
-    try {
-      const [products, total] = await Promise.all([
-        prisma.product.findMany({
-          where,
-          orderBy: getProductOrderBy(validatedFilters.sort),
-          skip,
-          take: limit,
-          include: productInclude,
-        }),
-        prisma.product.count({ where }),
-      ])
-
-      return {
-        products: products.map(normalizeProduct),
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.max(1, Math.ceil(total / limit)),
-        },
+    return unstable_cache(
+      () => getProductsUncached(validatedFilters),
+      ['storefront-products', JSON.stringify(validatedFilters)],
+      {
+        revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+        tags: [cacheTags.storefrontProducts, cacheTags.storefrontCategories],
       }
-    } catch (error) {
-      logStorefrontReadFailure('products', error)
-      return emptyProductResult(validatedFilters)
-    }
+    )()
   },
 
   async getProductBySlug(slug: string) {
@@ -200,17 +332,14 @@ export const storefrontService = {
       return null
     }
 
-    try {
-      const product = await prisma.product.findFirst({
-        where: { slug: validatedSlug.data, isActive: true },
-        include: productInclude,
-      })
-
-      return product ? normalizeProduct(product) : null
-    } catch (error) {
-      logStorefrontReadFailure('product detail', error)
-      return null
-    }
+    return unstable_cache(
+      () => getProductBySlugUncached(validatedSlug.data),
+      ['storefront-product', validatedSlug.data],
+      {
+        revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+        tags: [cacheTags.storefrontProducts, cacheTags.product(validatedSlug.data)],
+      }
+    )()
   },
 
   async getRelatedProducts(productId: string, categoryId: string | null, limit = 4) {
@@ -222,24 +351,14 @@ export const storefrontService = {
       return []
     }
 
-    try {
-      const relatedProducts = await prisma.product.findMany({
-        where: {
-          isActive: true,
-          id: { not: validatedProductId.data },
-          categoryId: validatedCategoryId?.data ?? null,
-          category: { isActive: true },
-        },
-        take: safeLimit,
-        orderBy: { createdAt: 'desc' },
-        include: productInclude,
-      })
-
-      return relatedProducts.map(normalizeProduct)
-    } catch (error) {
-      logStorefrontReadFailure('related products', error)
-      return []
-    }
+    return unstable_cache(
+      () => getRelatedProductsUncached(validatedProductId.data, validatedCategoryId?.data ?? null, safeLimit),
+      ['storefront-related-products', validatedProductId.data, validatedCategoryId?.data ?? 'none', String(safeLimit)],
+      {
+        revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+        tags: [cacheTags.storefrontProducts],
+      }
+    )()
   },
 
   async getProductReviews(productId: string) {
@@ -248,19 +367,13 @@ export const storefrontService = {
       return []
     }
 
-    try {
-      const reviews = await prisma.review.findMany({
-        where: { productId: validatedProductId.data, isApproved: true },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { fullName: true } },
-        },
-      })
-
-      return reviews.map(normalizeReview)
-    } catch (error) {
-      logStorefrontReadFailure('product reviews', error)
-      return []
-    }
+    return unstable_cache(
+      () => getProductReviewsUncached(validatedProductId.data),
+      ['storefront-product-reviews', validatedProductId.data],
+      {
+        revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+        tags: [cacheTags.productReviews(validatedProductId.data)],
+      }
+    )()
   },
 }

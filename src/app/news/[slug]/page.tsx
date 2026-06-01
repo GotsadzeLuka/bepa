@@ -9,6 +9,8 @@ interface PageProps {
   params: Promise<{ slug: string }>
 }
 
+export const revalidate = 300
+
 async function getNewsItem(slug: string) {
   return newsService.getNewsBySlug(slug)
 }
@@ -23,20 +25,18 @@ export default async function NewsDetailPage({ params }: PageProps) {
   const imageUrl = getSafeImageSrc(news.imageUrl)
 
   return (
-    <div className="container py-8">
-      {/* Back Link */}
+    <div className="container py-8 sm:py-10 lg:py-12">
       <Link
         href="/news"
-        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8"
+        className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/76 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:text-slate-950"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to News
       </Link>
 
-      <article className="max-w-3xl mx-auto">
-        {/* Header */}
-        <header className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+      <article className="mx-auto max-w-4xl">
+        <header className="mb-8 overflow-hidden rounded-[2.25rem] border border-white/70 bg-white/86 p-6 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-8">
+          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-500">
             <Calendar className="h-4 w-4" />
             <time dateTime={news.createdAt.toISOString()}>
               {news.createdAt.toLocaleDateString('en-US', {
@@ -46,15 +46,16 @@ export default async function NewsDetailPage({ params }: PageProps) {
               })}
             </time>
           </div>
-          <h1 className="text-4xl font-bold mb-4">{news.title}</h1>
+          <h1 className="font-display text-3xl font-black tracking-tight text-slate-950 text-balance sm:text-4xl lg:text-5xl">
+            {news.title}
+          </h1>
           {news.excerpt && (
-            <p className="text-xl text-muted-foreground">{news.excerpt}</p>
+            <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">{news.excerpt}</p>
           )}
         </header>
 
-        {/* Featured Image */}
         {imageUrl ? (
-          <div className="relative aspect-video rounded-lg overflow-hidden mb-8">
+          <div className="relative mb-8 aspect-video overflow-hidden rounded-[2rem] border border-white/70 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)]">
             <Image
               src={imageUrl}
               alt={news.title}
@@ -64,19 +65,20 @@ export default async function NewsDetailPage({ params }: PageProps) {
             />
           </div>
         ) : (
-          <div className="aspect-video bg-zinc-100 rounded-lg flex items-center justify-center mb-8">
-            <Newspaper className="h-16 w-16 text-zinc-300" />
+          <div className="mb-8 flex aspect-video items-center justify-center rounded-[2rem] border border-white/70 bg-slate-950 text-white/25 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)]">
+            <Newspaper className="h-16 w-16" />
           </div>
         )}
 
-        {/* Content */}
-        <div className="prose prose-lg max-w-none">
+        <div className="rounded-[2rem] border border-white/70 bg-white/88 p-6 text-slate-700 shadow-[0_24px_72px_-48px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-8">
           {news.content ? (
             news.content.split('\n').map((paragraph, index) => (
-              <p key={`${index}-${paragraph}`}>{paragraph}</p>
+              <p key={`${index}-${paragraph}`} className="mb-5 text-base leading-8 last:mb-0">
+                {paragraph}
+              </p>
             ))
           ) : (
-            <p className="text-muted-foreground">No content available.</p>
+            <p className="text-sm leading-7 text-slate-500">No content available.</p>
           )}
         </div>
       </article>

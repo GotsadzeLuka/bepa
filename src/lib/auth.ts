@@ -26,6 +26,16 @@ export interface AuthUser {
   role: UserRole
   fullName: string | null
   phone: string | null
+  provider: string | null
+  providers: string[]
+}
+
+function getStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+}
+
+export function hasGoogleAuthProvider(user: Pick<AuthUser, 'provider' | 'providers'>) {
+  return user.provider === 'google' || (!user.provider && user.providers.includes('google'))
 }
 
 /**
@@ -79,6 +89,8 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       role: (profile?.role as UserRole) || 'user',
       fullName: profile?.fullName || null,
       phone: profile?.phone || null,
+      provider: typeof user.app_metadata.provider === 'string' ? user.app_metadata.provider : null,
+      providers: getStringArray(user.app_metadata.providers),
     }
   } catch (error) {
     console.error('Auth error:', error)
@@ -110,6 +122,10 @@ export async function requireAdmin(): Promise<AuthUser> {
   if (user.role !== 'admin') {
     throw new Error('Admin access required')
   }
+
+  if (!hasGoogleAuthProvider(user)) {
+    throw new Error('Admin access requires Google OAuth')
+  }
   
   return user
 }
@@ -127,5 +143,5 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function isAdmin(): Promise<boolean> {
   const user = await getAuthUser()
-  return user !== null && user.role === 'admin'
+  return user !== null && user.role === 'admin' && hasGoogleAuthProvider(user)
 }

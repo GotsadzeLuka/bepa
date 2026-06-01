@@ -11,6 +11,8 @@
  */
 
 import { prisma } from '@/lib/db'
+import { unstable_cache } from 'next/cache'
+import { cacheTags, PUBLIC_CACHE_REVALIDATE_SECONDS } from '@/lib/cache'
 import type { OrderStatus, Prisma } from '@prisma/client'
 import { slugSchema } from '@/lib/validations'
 import type {
@@ -556,18 +558,27 @@ export const newsService = {
    * Get published news.
    */
   async getPublishedNews() {
-    try {
-      return await prisma.news.findMany({
-        where: { isPublished: true },
-        orderBy: { createdAt: 'desc' },
-      })
-    } catch (error) {
-      console.warn('[news] Unable to load published news from database.')
-      if (process.env.NODE_ENV === 'development') {
-        console.error(error)
+    return unstable_cache(
+      async () => {
+        try {
+          return await prisma.news.findMany({
+            where: { isPublished: true },
+            orderBy: { createdAt: 'desc' },
+          })
+        } catch (error) {
+          console.warn('[news] Unable to load published news from database.')
+          if (process.env.NODE_ENV === 'development') {
+            console.error(error)
+          }
+          return []
+        }
+      },
+      ['storefront-news'],
+      {
+        revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+        tags: [cacheTags.storefrontNews],
       }
-      return []
-    }
+    )()
   },
 
   /**
@@ -588,17 +599,26 @@ export const newsService = {
       return null
     }
 
-    try {
-      return await prisma.news.findFirst({
-        where: { slug: validatedSlug.data, isPublished: true },
-      })
-    } catch (error) {
-      console.warn('[news] Unable to load news item from database.')
-      if (process.env.NODE_ENV === 'development') {
-        console.error(error)
+    return unstable_cache(
+      async () => {
+        try {
+          return await prisma.news.findFirst({
+            where: { slug: validatedSlug.data, isPublished: true },
+          })
+        } catch (error) {
+          console.warn('[news] Unable to load news item from database.')
+          if (process.env.NODE_ENV === 'development') {
+            console.error(error)
+          }
+          return null
+        }
+      },
+      ['storefront-news-item', validatedSlug.data],
+      {
+        revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+        tags: [cacheTags.storefrontNews, cacheTags.newsItem(validatedSlug.data)],
       }
-      return null
-    }
+    )()
   },
 
   /**
