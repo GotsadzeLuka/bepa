@@ -61,27 +61,6 @@ export default async function HomePage() {
     { icon: CreditCard, title: t('secureCheckoutTitle'), desc: t('secureCheckoutCopy') },
   ]
 
-  const collectionCards = [
-    {
-      href: '/products?sale=true',
-      title: t('roadTripTitle'),
-      copy: t('roadTripCopy'),
-      tone: 'accessories',
-    },
-    {
-      href: '/products?featured=true',
-      title: t('garageTitle'),
-      copy: t('garageCopy'),
-      tone: 'brakes',
-    },
-    {
-      href: '/products?category=lighting',
-      title: t('dailyTitle'),
-      copy: t('dailyCopy'),
-      tone: 'lighting',
-    },
-  ]
-
   const featuredGrid = featuredProducts.slice(0, 4)
   const saleGrid = saleProducts.slice(0, 4)
   const latestGrid = latestProducts.slice(0, 4)
@@ -354,54 +333,6 @@ export default async function HomePage() {
                   <p className="mt-3 text-sm leading-7 text-slate-500">
                     {locale === 'ka' ? category.descriptionKa : category.descriptionEn}
                   </p>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="container py-2 sm:py-4">
-        <div className="grid gap-4 lg:grid-cols-3">
-          {collectionCards.map((collection, index) => {
-            const media = getCategoryMedia(collection.tone)
-
-            return (
-              <Link
-                key={collection.title}
-                href={collection.href}
-                className="group relative overflow-hidden rounded-[2rem] border border-white/65 shadow-[0_22px_68px_-42px_rgba(15,23,42,0.46)]"
-                style={{ animationDelay: `${140 + index * 90}ms` }}
-              >
-                <div className="relative aspect-[1.08]">
-                  {media.src ? (
-                    <SafeImage
-                      src={media.src}
-                      alt={media.alt}
-                      fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-[1.08]"
-                      style={{ objectPosition: media.objectPosition }}
-                      sizes="(max-width: 1024px) 100vw, 33vw"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-slate-900 text-white/30">
-                      <Shield className="h-14 w-14" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.16)_34%,rgba(15,23,42,0.9)_100%)]" />
-                  <div className="absolute inset-x-5 top-5">
-                    <span className="rounded-full border border-white/18 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/90 backdrop-blur-md">
-                      {t('collectionLabel')}
-                    </span>
-                  </div>
-                  <div className="absolute inset-x-5 bottom-5 rounded-[1.6rem] border border-white/12 bg-black/22 p-5 backdrop-blur-md">
-                    <h3 className="font-display text-2xl font-black tracking-tight text-white">
-                      {collection.title}
-                    </h3>
-                    <p className="mt-2 max-w-sm text-sm leading-7 text-white/74">
-                      {collection.copy}
-                    </p>
-                  </div>
                 </div>
               </Link>
             )
