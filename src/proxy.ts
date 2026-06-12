@@ -58,9 +58,10 @@ function withSecurityHeaders(response: NextResponse) {
   )
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  // geolocation=(self) allows the checkout "Use my current location" button
   response.headers.set(
     'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()'
+    'camera=(), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()'
   )
 
   return response
