@@ -44,6 +44,7 @@ import type { Category, Product, ProductImage, ProductVariant } from '@/types/da
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { getSafeImageSrc } from '@/lib/storefront-media'
+import { optimizeImageFiles } from '@/lib/optimize-image'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -53,7 +54,10 @@ interface ProductWithRelations extends Product {
   variants: ProductVariant[]
 }
 
-type VariantDraft = Pick<ProductVariant, 'name_en' | 'name_ka' | 'sku' | 'price' | 'stock' | 'is_active'>
+type VariantDraft = Pick<ProductVariant, 'name_en' | 'name_ka' | 'sku' | 'is_active'> & {
+  price: string
+  stock: string
+}
 
 function parseImageUrlInput(value: string) {
   return value
@@ -102,10 +106,10 @@ export default function ProductsPage() {
     slug: '',
     description_en: '',
     description_ka: '',
-    price: 0,
-    sale_price: null as number | null,
+    price: '',
+    sale_price: '',
     sku: '',
-    stock: 0,
+    stock: '',
     is_active: true,
     is_featured: false,
   })
@@ -150,10 +154,10 @@ export default function ProductsPage() {
       slug: '',
       description_en: '',
       description_ka: '',
-      price: 0,
-      sale_price: null,
+      price: '',
+      sale_price: '',
       sku: '',
-      stock: 0,
+      stock: '',
       is_active: true,
       is_featured: false,
     })
@@ -173,10 +177,10 @@ export default function ProductsPage() {
       slug: product.slug,
       description_en: product.description_en || '',
       description_ka: product.description_ka || '',
-      price: product.price,
-      sale_price: product.sale_price,
+      price: String(product.price),
+      sale_price: product.sale_price !== null ? String(product.sale_price) : '',
       sku: product.sku || '',
-      stock: product.stock,
+      stock: String(product.stock),
       is_active: product.is_active,
       is_featured: product.is_featured,
     })
@@ -185,8 +189,8 @@ export default function ProductsPage() {
       name_en: v.name_en,
       name_ka: v.name_ka,
       sku: v.sku,
-      price: v.price,
-      stock: v.stock,
+      price: String(v.price),
+      stock: String(v.stock),
       is_active: v.is_active,
     })) || [])
     setDialogOpen(true)
@@ -198,7 +202,7 @@ export default function ProductsPage() {
       name_ka: '',
       sku: null,
       price: formData.price,
-      stock: 0,
+      stock: '',
       is_active: true,
     }])
   }
@@ -214,17 +218,29 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (formData.price <= 0) {
+    const price = parseFloat(formData.price)
+    const salePrice = formData.sale_price.trim() ? parseFloat(formData.sale_price) : null
+    const stock = parseInt(formData.stock, 10)
+
+    if (!Number.isFinite(price) || price <= 0) {
       toast.error(toastText('pricePositive'))
       return
     }
 
-    if (formData.sale_price !== null && formData.sale_price <= 0) {
+    if (salePrice !== null && (!Number.isFinite(salePrice) || salePrice <= 0)) {
       toast.error(toastText('salePricePositive'))
       return
     }
 
-    const invalidVariant = variants.find((variant) => variant.price <= 0)
+    const parsedVariants = variants.map((variant) => ({
+      ...variant,
+      parsedPrice: parseFloat(variant.price),
+      parsedStock: parseInt(variant.stock, 10),
+    }))
+
+    const invalidVariant = parsedVariants.find(
+      (variant) => !Number.isFinite(variant.parsedPrice) || variant.parsedPrice <= 0
+    )
     if (invalidVariant) {
       toast.error(toastText('variantPricePositive'))
       return
@@ -248,10 +264,10 @@ export default function ProductsPage() {
         slug: formData.slug,
         descriptionEn: formData.description_en || null,
         descriptionKa: formData.description_ka || null,
-        price: formData.price,
-        salePrice: formData.sale_price,
+        price,
+        salePrice,
         sku: formData.sku || null,
-        stock: formData.stock,
+        stock: Number.isFinite(stock) ? stock : 0,
         isActive: formData.is_active,
         isFeatured: formData.is_featured,
       }
@@ -268,16 +284,16 @@ export default function ProductsPage() {
       }
 
       if (imageFiles.length > 0 && productId) {
-        await uploadProductImages(productId, imageFiles)
+        await uploadProductImages(productId, await optimizeImageFiles(imageFiles))
       }
 
       if (productId) {
-        await syncProductVariants(productId, variants.map((variant) => ({
+        await syncProductVariants(productId, parsedVariants.map((variant) => ({
           nameEn: variant.name_en,
           nameKa: variant.name_ka,
           sku: variant.sku,
-          price: variant.price,
-          stock: variant.stock,
+          price: variant.parsedPrice,
+          stock: Number.isFinite(variant.parsedStock) ? variant.parsedStock : 0,
           isActive: variant.is_active,
         })))
       }
@@ -462,34 +478,40 @@ export default function ProductsPage() {
                     <Label className="text-zinc-200">{t('priceGel')}</Label>
                     <Input
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
                       min="0.01"
                       value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="0.00"
                       required
-                      className="bg-zinc-800 border-zinc-700 text-white"
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-zinc-200">{t('salePrice')}</Label>
                     <Input
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
                       min="0.01"
-                      value={formData.sale_price || ''}
-                      onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? parseFloat(e.target.value) : null })}
+                      value={formData.sale_price}
+                      onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
                       placeholder={t('salePlaceholder')}
-                      className="bg-zinc-800 border-zinc-700 text-white"
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-zinc-200">{common('stock')}</Label>
                     <Input
                       type="number"
+                      inputMode="numeric"
+                      min="0"
                       value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                      placeholder="0"
                       required
-                      className="bg-zinc-800 border-zinc-700 text-white"
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                     />
                   </div>
                 </div>
@@ -572,11 +594,13 @@ export default function ProductsPage() {
                       <Label className="text-xs text-zinc-400">{common('price')}</Label>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         step="0.01"
                         min="0.01"
                         value={variant.price}
-                        onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
-                        className="bg-zinc-700 border-zinc-600 text-white"
+                        onChange={(e) => updateVariant(index, 'price', e.target.value)}
+                        placeholder="0.00"
+                        className="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
                         required
                       />
                     </div>
@@ -584,9 +608,12 @@ export default function ProductsPage() {
                       <Label className="text-xs text-zinc-400">{common('stock')}</Label>
                       <Input
                         type="number"
+                        inputMode="numeric"
+                        min="0"
                         value={variant.stock}
-                        onChange={(e) => updateVariant(index, 'stock', parseInt(e.target.value) || 0)}
-                        className="bg-zinc-700 border-zinc-600 text-white"
+                        onChange={(e) => updateVariant(index, 'stock', e.target.value)}
+                        placeholder="0"
+                        className="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
                         required
                       />
                     </div>

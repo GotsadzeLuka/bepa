@@ -69,26 +69,25 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Card
       data-product-card
-      className="group h-full overflow-hidden rounded-[2rem] border-white/70 bg-white/88 py-0 shadow-[0_20px_58px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_32px_90px_-42px_rgba(15,23,42,0.58)]"
+      className="group flex h-full flex-col overflow-hidden rounded-[1.75rem] border-white/70 bg-white/92 py-0 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_30px_80px_-40px_rgba(15,23,42,0.55)]"
     >
-      <div className="relative aspect-[0.9] overflow-hidden bg-slate-950">
+      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
         <Link href={`/product/${product.slug}`} className="absolute inset-0">
           {imageUrl ? (
             <SafeImage
               src={imageUrl}
               alt={media.alt || name}
               fill
-              className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.05]"
               style={{ objectPosition: media.objectPosition }}
               sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-slate-900 text-white/30">
+            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-300">
               <ShoppingCart className="h-14 w-14" />
             </div>
           )}
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.08),rgba(15,23,42,0.18)_34%,rgba(15,23,42,0.84)_100%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.24),transparent_26%)]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/25 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
         </Link>
 
         <div className="absolute left-3 top-3 flex max-w-[75%] flex-wrap gap-1.5">
@@ -132,27 +131,26 @@ export function ProductCard({ product }: ProductCardProps) {
           </Link>
         </div>
 
-        <div className="absolute inset-x-4 bottom-4">
-          <div className="rounded-[1.6rem] border border-white/14 bg-slate-950/32 p-4 shadow-2xl backdrop-blur-md">
-            {categoryName && (
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">
-                {categoryName}
-              </p>
-            )}
-            <h3 className="mt-2 line-clamp-2 text-xl font-black tracking-tight text-white">
-              {name}
-            </h3>
-            <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/72">
-              {getProductDescription(product, locale)}
-            </p>
-          </div>
-        </div>
       </div>
 
-      <CardContent className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
-        <div className="mt-auto space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-2">
+      <CardContent className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+        {categoryName && (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+            {categoryName}
+          </p>
+        )}
+        <Link href={`/product/${product.slug}`} className="group/title">
+          <h3 className="line-clamp-2 text-lg font-black leading-snug tracking-tight text-slate-950 transition-colors group-hover/title:text-primary">
+            {name}
+          </h3>
+        </Link>
+        <p className="line-clamp-2 text-sm leading-6 text-slate-500">
+          {getProductDescription(product, locale)}
+        </p>
+
+        <div className="mt-auto space-y-3 pt-2">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black tracking-tight text-slate-950">₾{displayPrice}</span>
               {hasDiscount && (
                 <span className="text-sm text-slate-400 line-through">₾{product.price}</span>
@@ -163,23 +161,15 @@ export function ProductCard({ product }: ProductCardProps) {
             </p>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href={`/product/${product.slug}`} className="sm:flex-1">
-              <Button variant="outline" className="w-full rounded-full border-slate-200 bg-slate-50/80">
-                <Eye className="h-4 w-4" />
-                {t('viewDetails')}
-              </Button>
-            </Link>
-            <Button
-              className="w-full rounded-full px-4 sm:w-auto"
-              onClick={handleAddToCart}
-              disabled={product.stock === 0}
-              data-add-to-cart
-            >
-              {justAdded ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-              {justAdded ? t('addedToCart') : t('addToCart')}
-            </Button>
-          </div>
+          <Button
+            className="w-full rounded-full"
+            onClick={handleAddToCart}
+            disabled={product.stock === 0}
+            data-add-to-cart
+          >
+            {justAdded ? <Check className="h-4 w-4 shrink-0" /> : <ShoppingCart className="h-4 w-4 shrink-0" />}
+            <span className="truncate">{justAdded ? t('addedToCart') : t('addToCart')}</span>
+          </Button>
         </div>
       </CardContent>
     </Card>

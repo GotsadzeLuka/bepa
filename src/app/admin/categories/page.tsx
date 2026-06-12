@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import type { Category } from '@/types/database'
 import { getSafeImageSrc } from '@/lib/storefront-media'
+import { optimizeImageFile } from '@/lib/optimize-image'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { useTranslations } from 'next-intl'
 
@@ -125,7 +126,7 @@ export default function CategoriesPage() {
       let imageUrl = formData.imageUrl.trim() || null
 
       if (imageFile) {
-        const uploaded = await uploadAdminImage('categories', imageFile)
+        const uploaded = await uploadAdminImage('categories', await optimizeImageFile(imageFile))
         imageUrl = uploaded.publicUrl
       }
 

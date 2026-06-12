@@ -26,6 +26,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { createNews, deleteNews, getNewsAdmin, updateNews, uploadAdminImage } from '@/app/admin/actions'
 import { getSafeImageSrc } from '@/lib/storefront-media'
+import { optimizeImageFile } from '@/lib/optimize-image'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { toast } from 'sonner'
 import { useLocale, useTranslations } from 'next-intl'
@@ -114,7 +115,7 @@ export default function AdminNewsPage() {
     try {
       let imageUrl = formData.image_url || null
       if (imageFile) {
-        const uploaded = await uploadAdminImage('news', imageFile)
+        const uploaded = await uploadAdminImage('news', await optimizeImageFile(imageFile))
         imageUrl = uploaded.publicUrl
       }
 
