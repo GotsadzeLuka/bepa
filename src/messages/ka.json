@@ -374,7 +374,8 @@
       "shippingAddress": "მიწოდების მისამართი",
       "notes": "შენიშვნები",
       "items": "ნივთები",
-      "qtyPrice": "რაოდ.: {quantity} x ₾{price}"
+      "qtyPrice": "რაოდ.: {quantity} x ₾{price}",
+      "viewOnMap": "რუკაზე ნახვა"
     },
     "customers": {
       "title": "მომხმარებლები",

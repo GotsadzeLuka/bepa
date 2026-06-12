@@ -25,8 +25,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { Eye, Package } from 'lucide-react'
+import { Eye, MapPin, Package } from 'lucide-react'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
+import { isGoogleMapsUrl } from '@/lib/location'
 import { useLocale, useTranslations } from 'next-intl'
 
 interface ShippingAddress {
@@ -37,6 +38,7 @@ interface ShippingAddress {
   address: string
   city: string
   postalCode?: string
+  locationUrl?: string
 }
 
 type Order = Awaited<ReturnType<typeof getOrdersAdmin>>[number] & {
@@ -238,9 +240,21 @@ export default function OrdersPage() {
                   <p className="text-white">{selectedOrder.shipping_address?.address}</p>
                   <p className="text-zinc-400">
                     {selectedOrder.shipping_address?.city}
-                    {selectedOrder.shipping_address?.postalCode && 
+                    {selectedOrder.shipping_address?.postalCode &&
                       `, ${selectedOrder.shipping_address.postalCode}`}
                   </p>
+                  {selectedOrder.shipping_address?.locationUrl &&
+                    isGoogleMapsUrl(selectedOrder.shipping_address.locationUrl) && (
+                    <a
+                      href={selectedOrder.shipping_address.locationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-blue-400 hover:text-blue-300"
+                    >
+                      <MapPin className="h-4 w-4" />
+                      {t('viewOnMap')}
+                    </a>
+                  )}
                 </div>
               </div>
 

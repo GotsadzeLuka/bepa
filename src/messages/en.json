@@ -374,7 +374,8 @@
       "shippingAddress": "Shipping Address",
       "notes": "Notes",
       "items": "Items",
-      "qtyPrice": "Qty: {quantity} x ₾{price}"
+      "qtyPrice": "Qty: {quantity} x ₾{price}",
+      "viewOnMap": "View on map"
     },
     "customers": {
       "title": "Customers",

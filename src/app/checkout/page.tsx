@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, CheckCircle2, Loader2, ShoppingBag, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, LocateFixed, MapPin, ShoppingBag, ShieldCheck, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createOrder } from '@/app/actions'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { buildE164, DEFAULT_COUNTRY, validateLocalNumber } from '@/lib/phone'
+import { buildMapsUrlFromCoords, isGoogleMapsUrl } from '@/lib/location'
 import { useCartStore } from '@/store/cart'
 
 const requiredFields = ['firstName', 'lastName', 'email', 'address', 'city'] as const
@@ -74,6 +75,10 @@ export default function CheckoutPage() {
   const [dialCode, setDialCode] = useState(DEFAULT_COUNTRY.dialCode)
   const [localNumber, setLocalNumber] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<CheckoutField, string>>>({})
+  const [locationUrl, setLocationUrl] = useState<string | null>(null)
+  const [locationInput, setLocationInput] = useState('')
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [locating, setLocating] = useState(false)
   const total = getTotal()
 
   const orderLines = useMemo(
@@ -105,6 +110,50 @@ export default function CheckoutPage() {
     setFieldErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
+  const handleUseMyLocation = () => {
+    if (!('geolocation' in navigator)) {
+      toast.error('Location is not supported by this browser. Paste a Google Maps link instead.')
+      return
+    }
+
+    setLocating(true)
+    setLocationError(null)
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocationUrl(buildMapsUrlFromCoords(position.coords.latitude, position.coords.longitude))
+        setLocationInput('')
+        setLocating(false)
+        toast.success('Location saved')
+      },
+      (error) => {
+        setLocating(false)
+        toast.error(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location access was denied. Paste a Google Maps link instead.'
+            : 'Could not detect your location. Paste a Google Maps link instead.'
+        )
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
+    )
+  }
+
+  const handleSaveLocationLink = () => {
+    const value = locationInput.trim()
+    if (!value) {
+      setLocationError('Paste a Google Maps link first')
+      return
+    }
+    if (!isGoogleMapsUrl(value)) {
+      setLocationError('That does not look like a Google Maps link (e.g., https://maps.app.goo.gl/…)')
+      return
+    }
+    setLocationUrl(value)
+    setLocationInput('')
+    setLocationError(null)
+    toast.success('Location saved')
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     
@@ -134,6 +183,7 @@ export default function CheckoutPage() {
           address: formData.address.trim(),
           city: formData.city.trim(),
           postalCode: formData.postalCode.trim() || undefined,
+          locationUrl: locationUrl ?? undefined,
         },
         notes: formData.notes.trim() || undefined,
       })
@@ -279,6 +329,97 @@ export default function CheckoutPage() {
                   <Field label="Postal code" name="postalCode" value={formData.postalCode} error={fieldErrors.postalCode} optional>
                     <Input id="postalCode" name="postalCode" value={formData.postalCode} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('postalCode')} />
                   </Field>
+                </div>
+
+                <div className="rounded-[1.25rem] border border-dashed border-slate-300 bg-slate-50/70 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      Map location
+                    </Label>
+                    <span className="text-xs text-slate-400">Optional</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Pin your exact location so the courier finds you faster.
+                  </p>
+
+                  {locationUrl ? (
+                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-800">Location saved</span>
+                      <a
+                        href={locationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 underline-offset-2 hover:underline"
+                      >
+                        Open map
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setLocationUrl(null)}
+                        aria-label="Remove saved location"
+                        className="rounded-full p-1 text-emerald-700 transition-colors hover:bg-emerald-100"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-xl border-slate-200 bg-white sm:w-auto"
+                        onClick={handleUseMyLocation}
+                        disabled={locating || loading}
+                      >
+                        {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+                        {locating ? 'Detecting location...' : 'Use my current location'}
+                      </Button>
+
+                      <div className="flex items-center gap-3">
+                        <div className="h-px flex-1 bg-slate-200" />
+                        <span className="text-xs uppercase tracking-wide text-slate-400">or</span>
+                        <div className="h-px flex-1 bg-slate-200" />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Input
+                          value={locationInput}
+                          onChange={(e) => {
+                            setLocationInput(e.target.value)
+                            setLocationError(null)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleSaveLocationLink()
+                            }
+                          }}
+                          placeholder="Paste a Google Maps link (https://maps.app.goo.gl/…)"
+                          className="h-11 min-w-0 flex-1 rounded-xl bg-white"
+                          aria-invalid={Boolean(locationError)}
+                          aria-describedby={locationError ? 'location-error' : undefined}
+                          disabled={loading}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="h-11 shrink-0 rounded-xl"
+                          onClick={handleSaveLocationLink}
+                          disabled={loading}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                      {locationError && (
+                        <p id="location-error" className="text-xs font-medium text-rose-600">
+                          {locationError}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

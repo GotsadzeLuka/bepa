@@ -10,6 +10,7 @@
 
 import { z } from 'zod'
 import { isValidPhoneValue } from '@/lib/phone'
+import { isGoogleMapsUrl } from '@/lib/location'
 
 // =====================================================
 // COMMON SCHEMAS
@@ -146,6 +147,10 @@ export const updateCategorySchema = createCategorySchema.partial()
 // ORDER SCHEMAS
 // =====================================================
 
+export const googleMapsUrlSchema = z.string()
+  .max(2048, 'Location link too long')
+  .refine(isGoogleMapsUrl, 'Location must be a Google Maps link')
+
 export const shippingAddressSchema = z.object({
   firstName: z.string().min(1).max(50),
   lastName: z.string().min(1).max(50),
@@ -154,6 +159,7 @@ export const shippingAddressSchema = z.object({
   address: z.string().min(5).max(200),
   city: z.string().min(2).max(100),
   postalCode: z.string().max(20).optional(),
+  locationUrl: googleMapsUrlSchema.optional(),
 })
 
 export const orderItemSchema = z.object({

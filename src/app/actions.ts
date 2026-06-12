@@ -208,6 +208,7 @@ export async function createOrder(data: {
     city: string
     postalCode?: string
     phone: string
+    locationUrl?: string
   }
   notes?: string
 }) {
