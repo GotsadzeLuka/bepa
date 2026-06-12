@@ -10,29 +10,32 @@ import { Button } from '@/components/ui/button'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInputField } from '@/components/ui/PhoneInputField'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { buildE164, DEFAULT_COUNTRY, validateLocalNumber } from '@/lib/phone'
 import { useCartStore } from '@/store/cart'
 
-const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city'] as const
+const requiredFields = ['firstName', 'lastName', 'email', 'address', 'city'] as const
 
-type CheckoutField = typeof requiredFields[number] | 'postalCode' | 'notes'
+type CheckoutField = typeof requiredFields[number] | 'phone' | 'postalCode' | 'notes'
 
-type CheckoutForm = Record<CheckoutField, string>
+type CheckoutForm = Record<Exclude<CheckoutField, 'phone'>, string>
 
 const initialFormData: CheckoutForm = {
   firstName: '',
   lastName: '',
   email: '',
-  phone: '',
   address: '',
   city: '',
   postalCode: '',
   notes: '',
 }
 
-function validateCheckoutForm(formData: CheckoutForm) {
+// Mirrors the server-side shippingAddressSchema so invalid input is
+// caught with inline errors instead of a server action failure.
+function validateCheckoutForm(formData: CheckoutForm, dialCode: string, localNumber: string) {
   const errors: Partial<Record<CheckoutField, string>> = {}
 
   for (const field of requiredFields) {
@@ -45,8 +48,17 @@ function validateCheckoutForm(formData: CheckoutForm) {
     errors.email = 'Enter a valid email'
   }
 
-  if (formData.phone && formData.phone.trim().length < 9) {
-    errors.phone = 'Enter a valid phone number'
+  const phoneError = validateLocalNumber(dialCode, localNumber)
+  if (phoneError) {
+    errors.phone = phoneError
+  }
+
+  if (formData.address.trim() && formData.address.trim().length < 5) {
+    errors.address = 'Address must be at least 5 characters'
+  }
+
+  if (formData.city.trim() && formData.city.trim().length < 2) {
+    errors.city = 'City must be at least 2 characters'
   }
 
   return errors
@@ -59,6 +71,8 @@ export default function CheckoutPage() {
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CheckoutForm>(initialFormData)
+  const [dialCode, setDialCode] = useState(DEFAULT_COUNTRY.dialCode)
+  const [localNumber, setLocalNumber] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<CheckoutField, string>>>({})
   const total = getTotal()
 
@@ -99,7 +113,7 @@ export default function CheckoutPage() {
       return
     }
 
-    const errors = validateCheckoutForm(formData)
+    const errors = validateCheckoutForm(formData, dialCode, localNumber)
     setFieldErrors(errors)
 
     if (Object.keys(errors).length > 0) {
@@ -116,7 +130,7 @@ export default function CheckoutPage() {
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
           email: formData.email.trim(),
-          phone: formData.phone.trim(),
+          phone: buildE164(dialCode, localNumber),
           address: formData.address.trim(),
           city: formData.city.trim(),
           postalCode: formData.postalCode.trim() || undefined,
@@ -212,7 +226,8 @@ export default function CheckoutPage() {
       <form onSubmit={handleSubmit} noValidate>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
           <section className="space-y-5">
-            <div className="rounded-[2rem] border border-white/70 bg-white/86 p-5 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl sm:p-6">
+            {/* z-10 keeps the phone country dropdown above the sibling cards' stacking contexts */}
+            <div className="relative z-10 rounded-[2rem] border border-white/70 bg-white/86 p-5 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl sm:p-6">
               <h2 className="font-display text-2xl font-black tracking-tight text-slate-950">
                 Contact information
               </h2>
@@ -226,9 +241,26 @@ export default function CheckoutPage() {
                 <Field label="Email" name="email" value={formData.email} error={fieldErrors.email}>
                   <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('email')} />
                 </Field>
-                <Field label="Phone" name="phone" value={formData.phone} error={fieldErrors.phone}>
-                  <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} className="h-11 rounded-xl bg-white" {...fieldProps('phone')} />
-                </Field>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-semibold text-slate-700">
+                    Phone
+                  </Label>
+                  <PhoneInputField
+                    id="phone"
+                    dialCode={dialCode}
+                    localNumber={localNumber}
+                    onDialCodeChange={(code) => {
+                      setDialCode(code)
+                      setFieldErrors((prev) => ({ ...prev, phone: undefined }))
+                    }}
+                    onLocalNumberChange={(digits) => {
+                      setLocalNumber(digits)
+                      setFieldErrors((prev) => ({ ...prev, phone: undefined }))
+                    }}
+                    error={fieldErrors.phone}
+                    disabled={loading}
+                  />
+                </div>
               </div>
             </div>
 

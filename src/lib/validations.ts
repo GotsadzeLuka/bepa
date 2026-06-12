@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod'
+import { isValidPhoneValue } from '@/lib/phone'
 
 // =====================================================
 // COMMON SCHEMAS
@@ -35,15 +36,13 @@ export const safeImageUrlSchema = z.string()
     }
   }, 'Image URL must be a safe HTTPS URL')
 
-// Georgian phone number validation
-// Accepts: +995 5XX XXX XXX, 995 5XXXXXXXX, 5XX XXX XXX, 5XXXXXXXX
-// Mobile numbers start with 5, landlines with area codes (32 for Tbilisi, etc.)
-export const georgianPhoneRegex = /^(\+?995\s?)?(5\d{2}[\s-]?\d{3}[\s-]?\d{3}|5\d{8}|(32|42|43|31|41|34)\d{2}[\s-]?\d{2}[\s-]?\d{2}|(32|42|43|31|41|34)\d{6})$/
-
+// Phone validation shared with the PhoneInputField component:
+// E.164 with a supported dial code (e.g., +995555123456), plus legacy
+// bare Georgian formats for previously stored values.
 export const phoneSchema = z.string()
   .min(9, 'Phone number too short')
   .max(20, 'Phone number too long')
-  .regex(georgianPhoneRegex, 'Invalid Georgian phone number (e.g., 5XX XXX XXX or +995 5XX XXX XXX)')
+  .refine(isValidPhoneValue, 'Invalid phone number (e.g., +995 555 123 456)')
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
