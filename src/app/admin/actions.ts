@@ -23,6 +23,7 @@ import {
   updateOrderStatusSchema,
   uuidSchema,
   productImageInputSchema,
+  safeImageUrlSchema,
   productVariantInputSchema,
 } from '@/lib/validations'
 
@@ -494,6 +495,45 @@ export async function createProductImage(data: {
   if (product) revalidateStorefrontProduct(product)
 
   return serializeProductImage(image)
+}
+
+export async function createProductImagesFromUrls(productId: string, urls: string[]) {
+  await requireAdmin()
+  const validatedProductId = uuidSchema.parse(productId)
+  const validatedUrls = Array.from(
+    new Set(urls.map((url) => url.trim()).filter(Boolean))
+  ).map((url) => safeImageUrlSchema.parse(url))
+
+  if (validatedUrls.length === 0) {
+    return []
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: validatedProductId },
+    include: { images: { orderBy: { sortOrder: 'desc' }, take: 1 } },
+  })
+
+  if (!product) {
+    throw new Error('Product not found')
+  }
+
+  const firstSortOrder = (product.images[0]?.sortOrder ?? -1) + 1
+  const createdImages = await prisma.$transaction(
+    validatedUrls.map((url, index) =>
+      prisma.productImage.create({
+        data: {
+          productId: validatedProductId,
+          url,
+          altText: product.nameEn,
+          sortOrder: firstSortOrder + index,
+          isPrimary: firstSortOrder + index === 0,
+        },
+      })
+    )
+  )
+
+  revalidateStorefrontProduct(product)
+  return createdImages.map(serializeProductImage)
 }
 
 export async function uploadProductImages(productId: string, files: File[]) {

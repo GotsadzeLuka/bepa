@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCartStore } from '@/store/cart'
@@ -76,7 +76,7 @@ export default function CartPage() {
                 <div className="flex gap-4">
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[1.25rem] bg-slate-100">
                     {item.image ? (
-                      <Image src={item.image} alt={item.name} fill className="object-cover" sizes="96px" />
+                      <SafeImage src={item.image} alt={item.name} fill className="object-cover" sizes="96px" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-slate-300">
                         <ShoppingBag className="h-8 w-8" />

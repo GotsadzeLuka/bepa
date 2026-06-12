@@ -1,9 +1,9 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { ArrowRight, Calendar, Newspaper } from 'lucide-react'
 import { newsService } from '@/lib/services'
 import { getSafeImageSrc } from '@/lib/storefront-media'
+import { SafeImage } from '@/components/ui/SafeImage'
 
 export const revalidate = 300
 
@@ -40,7 +40,7 @@ async function NewsGrid() {
           >
             <div className="relative aspect-video">
               {imageUrl ? (
-                <Image
+                <SafeImage
                   src={imageUrl}
                   alt={item.title}
                   fill

@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import Image from 'next/image'
-import { Plus, Pencil, Trash2, Newspaper, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2, Newspaper, ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,9 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { createNews, deleteNews, getNewsAdmin, updateNews, uploadAdminImage } from '@/app/admin/actions'
 import { getSafeImageSrc } from '@/lib/storefront-media'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { toast } from 'sonner'
 
 interface NewsItem {
@@ -42,9 +43,13 @@ interface NewsItem {
 export default function AdminNewsPage() {
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageInputKey, setImageInputKey] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<NewsItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -98,6 +103,8 @@ export default function AdminNewsPage() {
       return
     }
 
+    setSaving(true)
+
     try {
       let imageUrl = formData.image_url || null
       if (imageFile) {
@@ -133,6 +140,8 @@ export default function AdminNewsPage() {
     } catch (error) {
       console.error('Error saving news:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to save news')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -149,16 +158,20 @@ export default function AdminNewsPage() {
     setDialogOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this news item?')) return
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
 
     try {
-      await deleteNews(id)
+      await deleteNews(deleteTarget.id)
       toast.success('News deleted')
+      setDeleteTarget(null)
       fetchNews()
     } catch (error) {
       console.error('Error deleting news:', error)
       toast.error('Failed to delete news')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -173,49 +186,50 @@ export default function AdminNewsPage() {
       is_published: true,
     })
     setImageFile(null)
+    setImageInputKey((key) => key + 1)
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">News</h1>
-          <p className="text-muted-foreground">
-            Manage news and blog posts
-          </p>
+          <h1 className="text-3xl font-bold text-white">News</h1>
+          <p className="mt-1 text-zinc-400">Manage news and blog posts</p>
         </div>
         <Dialog
           open={dialogOpen}
           onOpenChange={(open) => {
+            if (saving) return
             setDialogOpen(open)
             if (!open) resetForm()
           }}
         >
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="mr-2 h-4 w-4" />
               Add News
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-zinc-800 bg-zinc-900">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-white">
                 {editingNews ? 'Edit News' : 'Add News'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="mt-4 space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title">Title *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="title" className="text-zinc-200">Title *</Label>
                   <Input
                     id="title"
                     value={formData.title}
                     onChange={handleTitleChange}
                     required
+                    className="border-zinc-700 bg-zinc-800 text-white"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="slug">Slug *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="slug" className="text-zinc-200">Slug *</Label>
                   <Input
                     id="slug"
                     value={formData.slug}
@@ -223,12 +237,13 @@ export default function AdminNewsPage() {
                       setFormData({ ...formData, slug: e.target.value })
                     }
                     required
+                    className="border-zinc-700 bg-zinc-800 text-white"
                   />
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="excerpt">Excerpt</Label>
+              <div className="space-y-2">
+                <Label htmlFor="excerpt" className="text-zinc-200">Excerpt</Label>
                 <Textarea
                   id="excerpt"
                   value={formData.excerpt}
@@ -237,11 +252,12 @@ export default function AdminNewsPage() {
                   }
                   rows={2}
                   placeholder="Short summary..."
+                  className="border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="content">Content</Label>
+              <div className="space-y-2">
+                <Label htmlFor="content" className="text-zinc-200">Content</Label>
                 <Textarea
                   id="content"
                   value={formData.content}
@@ -250,30 +266,47 @@ export default function AdminNewsPage() {
                   }
                   rows={8}
                   placeholder="Full article content..."
+                  className="border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500"
                 />
               </div>
 
-              <div>
-                <Label>Image</Label>
-                <div className="mt-2 flex gap-4">
+              <div className="space-y-2">
+                <Label className="text-zinc-200">Image</Label>
+                <div className="flex gap-4">
                   {getSafeImageSrc(formData.image_url) && (
-                    <div className="relative h-32 w-48 rounded-lg overflow-hidden">
-                      <Image
+                    <div className="relative h-32 w-48 overflow-hidden rounded-lg bg-zinc-800">
+                      <SafeImage
                         src={getSafeImageSrc(formData.image_url) ?? ''}
                         alt="Preview"
                         fill
+                        sizes="192px"
                         className="object-cover"
                       />
                     </div>
                   )}
                   <div>
                     <Input
+                      type="url"
+                      value={formData.image_url}
+                      onChange={(e) => {
+                        setFormData({ ...formData, image_url: e.target.value })
+                        if (e.target.value.trim()) {
+                          setImageFile(null)
+                          setImageInputKey((key) => key + 1)
+                        }
+                      }}
+                      placeholder="https://example.com/image.webp"
+                      className="mb-3 border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500"
+                    />
+                    <Input
+                      key={imageInputKey}
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/avif"
                       onChange={handleImageUpload}
+                      className="border-zinc-700 bg-zinc-800 text-white"
                     />
                     {imageFile && (
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="mt-1 text-sm text-zinc-400">
                         Selected: {imageFile.name}
                       </p>
                     )}
@@ -289,18 +322,24 @@ export default function AdminNewsPage() {
                     setFormData({ ...formData, is_published: checked })
                   }
                 />
-                <Label htmlFor="is_published">Published</Label>
+                <Label htmlFor="is_published" className="text-zinc-200">Published</Label>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setDialogOpen(false)}
+                  className="border-zinc-700 text-zinc-300"
+                  disabled={saving}
+                  onClick={() => {
+                    setDialogOpen(false)
+                    resetForm()
+                  }}
                 >
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingNews ? 'Update' : 'Create'}
                 </Button>
               </div>
@@ -310,70 +349,67 @@ export default function AdminNewsPage() {
       </div>
 
       {loading ? (
-        <div className="animate-pulse space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-zinc-200 rounded" />
-          ))}
-        </div>
+        <AdminTableSkeleton rows={5} />
       ) : news.length === 0 ? (
-        <div className="text-center py-12 bg-zinc-50 rounded-lg">
-          <Newspaper className="h-12 w-12 mx-auto text-zinc-400 mb-4" />
-          <h3 className="text-lg font-medium mb-2">No news yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Create your first news article
-          </p>
+        <div className="rounded-lg bg-zinc-900/50 py-12 text-center">
+          <Newspaper className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
+          <h3 className="mb-2 text-lg font-medium text-white">No news yet</h3>
+          <p className="mb-4 text-zinc-400">Create your first news article</p>
           <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Add News
           </Button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border">
+        <div className="overflow-hidden rounded-lg border border-zinc-800">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Image</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow className="border-zinc-800 hover:bg-transparent">
+                <TableHead className="text-zinc-400">Image</TableHead>
+                <TableHead className="text-zinc-400">Title</TableHead>
+                <TableHead className="text-zinc-400">Status</TableHead>
+                <TableHead className="text-zinc-400">Date</TableHead>
+                <TableHead className="text-right text-zinc-400">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {news.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className="border-zinc-800 hover:bg-zinc-900">
                   <TableCell>
-                    <div className="relative h-12 w-16 rounded overflow-hidden bg-zinc-100">
+                    <div className="relative h-12 w-16 overflow-hidden rounded bg-zinc-800">
                       {getSafeImageSrc(item.image_url) ? (
-                        <Image
+                        <SafeImage
                           src={getSafeImageSrc(item.image_url) ?? ''}
                           alt={item.title}
                           fill
+                          sizes="64px"
                           className="object-cover"
                         />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center">
-                          <Newspaper className="h-5 w-5 text-zinc-400" />
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Newspaper className="h-5 w-5 text-zinc-600" />
                         </div>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        /{item.slug}
-                      </p>
+                      <p className="font-medium text-white">{item.title}</p>
+                      <p className="text-sm text-zinc-400">/{item.slug}</p>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={item.is_published ? 'default' : 'secondary'}
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs ${
+                        item.is_published
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-zinc-700/60 text-zinc-300'
+                      }`}
                     >
                       {item.is_published ? 'Published' : 'Draft'}
-                    </Badge>
+                    </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-zinc-300">
                     {new Date(item.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
@@ -381,6 +417,8 @@ export default function AdminNewsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="text-zinc-400 hover:text-white"
+                        aria-label={`Open ${item.title} on the storefront`}
                         onClick={() => window.open(`/news/${item.slug}`, '_blank')}
                       >
                         <ExternalLink className="h-4 w-4" />
@@ -388,6 +426,8 @@ export default function AdminNewsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="text-zinc-400 hover:text-white"
+                        aria-label={`Edit ${item.title}`}
                         onClick={() => handleEdit(item)}
                       >
                         <Pencil className="h-4 w-4" />
@@ -395,8 +435,9 @@ export default function AdminNewsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => handleDelete(item.id)}
+                        className="text-zinc-400 hover:text-red-400"
+                        aria-label={`Delete ${item.title}`}
+                        onClick={() => setDeleteTarget(item)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -408,6 +449,17 @@ export default function AdminNewsPage() {
           </Table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        title="Delete news article?"
+        description={`"${deleteTarget?.title ?? ''}" will be permanently removed from the storefront.`}
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

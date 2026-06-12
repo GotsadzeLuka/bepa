@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { getCustomersAdmin } from '@/app/admin/actions'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -10,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Loader2, Users } from 'lucide-react'
+import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
+import { Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 
 type Customer = Awaited<ReturnType<typeof getCustomersAdmin>>[number]
@@ -18,6 +20,7 @@ type Customer = Awaited<ReturnType<typeof getCustomersAdmin>>[number]
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -35,19 +38,44 @@ export default function CustomersPage() {
     fetchCustomers()
   }, [fetchCustomers])
 
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const visibleCustomers = normalizedSearch
+    ? customers.filter((customer) =>
+        [customer.email, customer.full_name ?? '', customer.phone ?? '']
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedSearch)
+      )
+    : customers
+
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Customers</h1>
+          <p className="text-zinc-400">Review registered profiles and admin access.</p>
+        </div>
+        <AdminTableSkeleton rows={5} />
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="mb-8">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-3xl font-bold text-white">Customers</h1>
         <p className="text-zinc-400">Review registered profiles and admin access.</p>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <Input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by email, name, or phone..."
+          className="border-zinc-700 bg-zinc-800 pl-9 text-white placeholder:text-zinc-500"
+        />
       </div>
 
       {customers.length === 0 ? (
@@ -69,21 +97,35 @@ export default function CustomersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id} className="border-zinc-800 hover:bg-zinc-900">
-                  <TableCell className="font-medium text-white">{customer.email}</TableCell>
-                  <TableCell className="text-zinc-300">{customer.full_name || '-'}</TableCell>
-                  <TableCell className="text-zinc-300">{customer.phone || '-'}</TableCell>
-                  <TableCell>
-                    <span className="rounded-full bg-zinc-800 px-2 py-1 text-xs text-zinc-200">
-                      {customer.role}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-zinc-300">
-                    {new Date(customer.created_at).toLocaleDateString()}
+              {visibleCustomers.length === 0 ? (
+                <TableRow className="border-zinc-800 hover:bg-transparent">
+                  <TableCell colSpan={5} className="py-8 text-center text-zinc-400">
+                    No customers match &quot;{searchQuery.trim()}&quot;
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                visibleCustomers.map((customer) => (
+                  <TableRow key={customer.id} className="border-zinc-800 hover:bg-zinc-900">
+                    <TableCell className="font-medium text-white">{customer.email}</TableCell>
+                    <TableCell className="text-zinc-300">{customer.full_name || '-'}</TableCell>
+                    <TableCell className="text-zinc-300">{customer.phone || '-'}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs ${
+                          customer.role === 'admin'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-zinc-800 text-zinc-200'
+                        }`}
+                      >
+                        {customer.role}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-zinc-300">
+                      {new Date(customer.created_at).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>

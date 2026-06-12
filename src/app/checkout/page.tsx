@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, CheckCircle2, Loader2, ShoppingBag, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { createOrder } from '@/app/actions'
 import { Button } from '@/components/ui/button'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -277,7 +277,7 @@ export default function CheckoutPage() {
                 <div key={item.id} className="flex gap-3">
                   <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                     {item.image ? (
-                      <Image src={item.image} alt={item.name} fill className="object-cover" sizes="64px" />
+                      <SafeImage src={item.image} alt={item.name} fill className="object-cover" sizes="64px" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-slate-300">
                         <ShoppingBag className="h-6 w-6" />

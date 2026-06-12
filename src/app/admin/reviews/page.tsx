@@ -11,7 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Check, Loader2, Star, Trash2 } from 'lucide-react'
+import { Check, Star, Trash2 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { toast } from 'sonner'
 
 type AdminReview = Awaited<ReturnType<typeof getReviewsAdmin>>[number]
@@ -19,6 +21,8 @@ type AdminReview = Awaited<ReturnType<typeof getReviewsAdmin>>[number]
 export default function ReviewsPage() {
   const [reviews, setReviews] = useState<AdminReview[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<AdminReview | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchReviews = useCallback(async () => {
     try {
@@ -46,22 +50,30 @@ export default function ReviewsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this review?')) return
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
 
     try {
-      await deleteReview(id)
+      await deleteReview(deleteTarget.id)
       toast.success('Review deleted')
+      setDeleteTarget(null)
       fetchReviews()
     } catch {
       toast.error('Failed to delete review')
+    } finally {
+      setDeleting(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Reviews</h1>
+          <p className="text-zinc-400">Moderate customer product reviews.</p>
+        </div>
+        <AdminTableSkeleton rows={5} />
       </div>
     )
   }
@@ -114,11 +126,23 @@ export default function ReviewsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {!review.is_approved && (
-                      <Button variant="ghost" size="icon" onClick={() => handleApprove(review.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-zinc-400 hover:text-green-400"
+                        aria-label={`Approve review for ${review.product.name_en}`}
+                        onClick={() => handleApprove(review.id)}
+                      >
                         <Check className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(review.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-zinc-400 hover:text-red-400"
+                      aria-label={`Delete review for ${review.product.name_en}`}
+                      onClick={() => setDeleteTarget(review)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -128,6 +152,17 @@ export default function ReviewsPage() {
           </Table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        title="Delete review?"
+        description={`The review for "${deleteTarget?.product.name_en ?? ''}" will be permanently removed.`}
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

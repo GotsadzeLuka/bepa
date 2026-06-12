@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Package, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -200,7 +200,7 @@ export default function OrdersPage() {
                           <div key={item.id} className="flex gap-3">
                             <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                               {primaryImage ? (
-                                <Image
+                                <SafeImage
                                   src={primaryImage}
                                   alt={product?.name_en || 'Product'}
                                   fill

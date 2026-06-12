@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { ArrowLeft, Calendar, Newspaper } from 'lucide-react'
 import { newsService } from '@/lib/services'
 import { getSafeImageSrc } from '@/lib/storefront-media'
+import { SafeImage } from '@/components/ui/SafeImage'
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -85,7 +85,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
         {imageUrl ? (
           <div className="relative mb-8 aspect-video overflow-hidden rounded-[2rem] border border-white/70 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)]">
-            <Image
+            <SafeImage
               src={imageUrl}
               alt={news.title}
               fill

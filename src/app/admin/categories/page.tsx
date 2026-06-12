@@ -23,9 +23,11 @@ import {
 } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Loader2, ImageIcon } from 'lucide-react'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import type { Category } from '@/types/database'
 import { getSafeImageSrc } from '@/lib/storefront-media'
-import Image from 'next/image'
+import { SafeImage } from '@/components/ui/SafeImage'
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -34,11 +36,15 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [formLoading, setFormLoading] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageInputKey, setImageInputKey] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const [formData, setFormData] = useState({
     nameEn: '',
     nameKa: '',
     slug: '',
+    imageUrl: '',
     descriptionEn: '',
     descriptionKa: '',
     isActive: true,
@@ -80,6 +86,7 @@ export default function CategoriesPage() {
       nameEn: '',
       nameKa: '',
       slug: '',
+      imageUrl: '',
       descriptionEn: '',
       descriptionKa: '',
       isActive: true,
@@ -87,6 +94,7 @@ export default function CategoriesPage() {
     })
     setEditingCategory(null)
     setImageFile(null)
+    setImageInputKey((key) => key + 1)
   }
 
   const openEditDialog = (category: Category) => {
@@ -95,6 +103,7 @@ export default function CategoriesPage() {
       nameEn: category.name_en,
       nameKa: category.name_ka,
       slug: category.slug,
+      imageUrl: category.image_url || '',
       descriptionEn: category.description_en || '',
       descriptionKa: category.description_ka || '',
       isActive: category.is_active,
@@ -108,7 +117,7 @@ export default function CategoriesPage() {
     setFormLoading(true)
 
     try {
-      let imageUrl = editingCategory?.image_url || null
+      let imageUrl = formData.imageUrl.trim() || null
 
       if (imageFile) {
         const uploaded = await uploadAdminImage('categories', imageFile)
@@ -138,22 +147,30 @@ export default function CategoriesPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category?')) return
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
 
     try {
-      await deleteCategory(id)
+      await deleteCategory(deleteTarget.id)
       toast.success('Category deleted')
+      setDeleteTarget(null)
       fetchCategories()
     } catch {
       toast.error('Failed to delete category')
+    } finally {
+      setDeleting(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Categories</h1>
+          <p className="text-zinc-400 mt-1">Manage product categories</p>
+        </div>
+        <AdminTableSkeleton rows={5} />
       </div>
     )
   }
@@ -246,23 +263,42 @@ export default function CategoriesPage() {
 
               <div className="space-y-2">
                 <Label className="text-zinc-200">Image</Label>
-                <div className="flex items-center gap-4">
-                  {getSafeImageSrc(editingCategory?.image_url) && !imageFile && (
+                <div className="flex items-start gap-4">
+                  {getSafeImageSrc(formData.imageUrl) && !imageFile && (
                     <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-zinc-800">
-                      <Image
-                        src={getSafeImageSrc(editingCategory?.image_url) ?? ''}
-                        alt={editingCategory?.name_en ?? 'Category image'}
+                      <SafeImage
+                        src={getSafeImageSrc(formData.imageUrl) ?? ''}
+                        alt={formData.nameEn || 'Category image'}
                         fill
                         className="object-cover"
                       />
                     </div>
                   )}
-                  <Input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/avif"
-                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                    className="bg-zinc-800 border-zinc-700 text-white"
-                  />
+                  <div className="flex-1 space-y-3">
+                    <Input
+                      type="url"
+                      value={formData.imageUrl}
+                      onChange={(e) => {
+                        setFormData({ ...formData, imageUrl: e.target.value })
+                        if (e.target.value.trim()) {
+                          setImageFile(null)
+                          setImageInputKey((key) => key + 1)
+                        }
+                      }}
+                      placeholder="https://example.com/image.webp"
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    />
+                    <Input
+                      key={imageInputKey}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                      className="bg-zinc-800 border-zinc-700 text-white"
+                    />
+                    {imageFile && (
+                      <p className="text-sm text-zinc-400">Selected: {imageFile.name}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -325,7 +361,7 @@ export default function CategoriesPage() {
                   <TableCell>
                     {getSafeImageSrc(category.image_url) ? (
                       <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-zinc-800">
-                        <Image
+                        <SafeImage
                           src={getSafeImageSrc(category.image_url) ?? ''}
                           alt={category.name_en}
                           fill
@@ -360,14 +396,16 @@ export default function CategoriesPage() {
                         size="icon"
                         onClick={() => openEditDialog(category)}
                         className="text-zinc-400 hover:text-white"
+                        aria-label={`Edit ${category.name_en}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(category.id)}
+                        onClick={() => setDeleteTarget(category)}
                         className="text-zinc-400 hover:text-red-400"
+                        aria-label={`Delete ${category.name_en}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -379,6 +417,17 @@ export default function CategoriesPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        title="Delete category?"
+        description={`"${deleteTarget?.name_en ?? ''}" will be removed; its products become uncategorized.`}
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

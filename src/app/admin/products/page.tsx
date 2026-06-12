@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   createProduct,
+  createProductImagesFromUrls,
   deleteProduct,
   deleteProductImage,
   getCategoriesAdmin,
@@ -38,10 +39,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Loader2, ImageIcon, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, ImageIcon, Search, X } from 'lucide-react'
 import type { Category, Product, ProductImage, ProductVariant } from '@/types/database'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { getSafeImageSrc } from '@/lib/storefront-media'
-import Image from 'next/image'
+import { SafeImage } from '@/components/ui/SafeImage'
 
 interface ProductWithRelations extends Product {
   category: Category | null
@@ -51,6 +54,26 @@ interface ProductWithRelations extends Product {
 
 type VariantDraft = Pick<ProductVariant, 'name_en' | 'name_ka' | 'sku' | 'price' | 'stock' | 'is_active'>
 
+function parseImageUrlInput(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((url) => url.trim())
+    .filter(Boolean)
+}
+
+function assertValidImageUrls(urls: string[]) {
+  for (const value of urls) {
+    try {
+      const url = new URL(value)
+      if (value.length > 2048 || url.protocol !== 'https:' || url.username || url.password) {
+        throw new Error()
+      }
+    } catch {
+      throw new Error(`Invalid image URL: ${value}`)
+    }
+  }
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<ProductWithRelations[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -59,8 +82,12 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<ProductWithRelations | null>(null)
   const [formLoading, setFormLoading] = useState(false)
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imageUrls, setImageUrls] = useState('')
   const [existingImages, setExistingImages] = useState<ProductImage[]>([])
   const [variants, setVariants] = useState<VariantDraft[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<ProductWithRelations | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const [formData, setFormData] = useState({
     category_id: '',
@@ -126,6 +153,7 @@ export default function ProductsPage() {
     })
     setEditingProduct(null)
     setImageFiles([])
+    setImageUrls('')
     setExistingImages([])
     setVariants([])
   }
@@ -182,6 +210,9 @@ export default function ProductsPage() {
     setFormLoading(true)
 
     try {
+      const parsedImageUrls = parseImageUrlInput(imageUrls)
+      assertValidImageUrls(parsedImageUrls)
+
       let productId = editingProduct?.id
       const productData = {
         categoryId: formData.category_id || null,
@@ -203,6 +234,10 @@ export default function ProductsPage() {
       } else {
         const product = await createProduct(productData)
         productId = product.id
+      }
+
+      if (parsedImageUrls.length > 0 && productId) {
+        await createProductImagesFromUrls(productId, parsedImageUrls)
       }
 
       if (imageFiles.length > 0 && productId) {
@@ -231,15 +266,19 @@ export default function ProductsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
 
     try {
-      await deleteProduct(id)
+      await deleteProduct(deleteTarget.id)
       toast.success('Product deleted')
+      setDeleteTarget(null)
       fetchProducts()
     } catch {
       toast.error('Failed to delete product')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -252,10 +291,24 @@ export default function ProductsPage() {
     }
   }
 
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const visibleProducts = normalizedSearch
+    ? products.filter((product) =>
+        [product.name_en, product.name_ka, product.sku ?? '', product.category?.name_en ?? '']
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedSearch)
+      )
+    : products
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Products</h1>
+          <p className="text-zinc-400 mt-1">Manage your products</p>
+        </div>
+        <AdminTableSkeleton rows={6} />
       </div>
     )
   }
@@ -421,7 +474,7 @@ export default function ProductsPage() {
                     {existingImages.map((img) => (
                       <div key={img.id} className="relative h-20 w-20 rounded-lg overflow-hidden bg-zinc-800">
                         {getSafeImageSrc(img.url) ? (
-                          <Image src={getSafeImageSrc(img.url) ?? ''} alt="" fill className="object-cover" />
+                          <SafeImage src={getSafeImageSrc(img.url) ?? ''} alt="" fill className="object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
                             <ImageIcon className="h-5 w-5 text-zinc-600" />
@@ -431,6 +484,7 @@ export default function ProductsPage() {
                           type="button"
                           onClick={() => removeExistingImage(img.id)}
                           className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5"
+                          aria-label="Remove product image"
                         >
                           <X className="h-3 w-3 text-white" />
                         </button>
@@ -445,6 +499,16 @@ export default function ProductsPage() {
                   onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
                   className="bg-zinc-800 border-zinc-700 text-white"
                 />
+                <div className="space-y-2">
+                  <Label className="text-zinc-200">Image URLs</Label>
+                  <Textarea
+                    value={imageUrls}
+                    onChange={(e) => setImageUrls(e.target.value)}
+                    placeholder="https://example.com/image.webp"
+                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    rows={3}
+                  />
+                </div>
               </div>
 
               {/* Variants */}
@@ -501,6 +565,7 @@ export default function ProductsPage() {
                       size="icon"
                       onClick={() => removeVariant(index)}
                       className="text-red-400"
+                      aria-label={`Remove variant ${index + 1}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -554,6 +619,17 @@ export default function ProductsPage() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <Input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by name, SKU, or category..."
+          className="border-zinc-700 bg-zinc-800 pl-9 text-white placeholder:text-zinc-500"
+        />
+      </div>
+
       <div className="rounded-lg border border-zinc-800 overflow-hidden">
         <Table>
           <TableHeader>
@@ -568,19 +644,19 @@ export default function ProductsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.length === 0 ? (
+            {visibleProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-zinc-400">
-                  No products found
+                  {normalizedSearch ? `No products match "${searchQuery.trim()}"` : 'No products found'}
                 </TableCell>
               </TableRow>
             ) : (
-              products.map((product) => (
+              visibleProducts.map((product) => (
                 <TableRow key={product.id} className="border-zinc-800 hover:bg-zinc-900">
                   <TableCell>
                     {getSafeImageSrc(product.images?.[0]?.url) ? (
                       <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-zinc-800">
-                        <Image
+                        <SafeImage
                           src={getSafeImageSrc(product.images[0].url) ?? ''}
                           alt={product.name_en}
                           fill
@@ -638,14 +714,16 @@ export default function ProductsPage() {
                         size="icon"
                         onClick={() => openEditDialog(product)}
                         className="text-zinc-400 hover:text-white"
+                        aria-label={`Edit ${product.name_en}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(product.id)}
+                        onClick={() => setDeleteTarget(product)}
                         className="text-zinc-400 hover:text-red-400"
+                        aria-label={`Delete ${product.name_en}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -657,6 +735,17 @@ export default function ProductsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        title="Delete product?"
+        description={`"${deleteTarget?.name_en ?? ''}" and its images will be permanently removed.`}
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

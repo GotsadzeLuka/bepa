@@ -25,7 +25,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { Loader2, Eye, Package } from 'lucide-react'
+import { Eye, Package } from 'lucide-react'
+import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 
 interface ShippingAddress {
   firstName: string
@@ -72,15 +73,18 @@ export default function OrdersPage() {
     void Promise.resolve().then(fetchOrders)
   }, [fetchOrders])
 
-  const updateStatus = async (orderId: string, status: string) => {
+  const updateStatus = async (orderId: string, status: Order['status']) => {
+    const previousOrders = orders
+    // Optimistic update so the select reflects the change immediately.
+    setOrders((current) =>
+      current.map((order) => (order.id === orderId ? { ...order, status } : order))
+    )
+
     try {
-      await updateOrderStatus(
-        orderId,
-        status as 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
-      )
+      await updateOrderStatus(orderId, status)
       toast.success('Order status updated')
-      fetchOrders()
     } catch {
+      setOrders(previousOrders)
       toast.error('Failed to update status')
     }
   }
@@ -106,8 +110,12 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Orders</h1>
+          <p className="text-zinc-400">Manage customer orders</p>
+        </div>
+        <AdminTableSkeleton rows={6} />
       </div>
     )
   }
@@ -161,12 +169,12 @@ export default function OrdersPage() {
                   <TableCell>
                     <Select
                       value={order.status}
-                      onValueChange={(value) => updateStatus(order.id, value)}
+                      onValueChange={(value) => updateStatus(order.id, value as Order['status'])}
                     >
                       <SelectTrigger className={`w-32 ${statusColors[order.status] || ''} border-none`}>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="border-zinc-700 bg-zinc-800 text-white">
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="confirmed">Confirmed</SelectItem>
                         <SelectItem value="processing">Processing</SelectItem>
@@ -180,6 +188,8 @@ export default function OrdersPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="text-zinc-400 hover:text-white"
+                      aria-label={`View order ${getOrderNumber(order.id)}`}
                       onClick={() => viewOrder(order)}
                     >
                       <Eye className="h-4 w-4" />
@@ -247,6 +257,9 @@ export default function OrdersPage() {
                       <div>
                         <p className="text-white">
                           {item.product?.name_en || 'Product'}
+                          {item.variant?.name_en && (
+                            <span className="ml-2 text-sm text-zinc-400">({item.variant.name_en})</span>
+                          )}
                         </p>
                         <p className="text-sm text-zinc-400">
                           Qty: {item.quantity} × ₾{item.price}

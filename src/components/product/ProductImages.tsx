@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { useLocale } from 'next-intl'
 import { ProductArtwork } from '@/components/product/ProductArtwork'
+import { SafeImage } from '@/components/ui/SafeImage'
 import {
   getCategoryName,
   getProductDescription,
@@ -35,7 +35,7 @@ export function ProductImages({ product }: ProductImagesProps) {
     <div className="space-y-4">
       <div className="relative aspect-square overflow-hidden rounded-[2rem] border border-white/65 bg-slate-100 shadow-[0_24px_70px_-36px_rgba(15,23,42,0.65)]">
         {currentImage ? (
-          <Image
+          <SafeImage
             src={currentImage}
             alt={productName}
             fill
@@ -67,7 +67,7 @@ export function ProductImages({ product }: ProductImagesProps) {
                   : 'border-slate-200 hover:border-slate-300'
               }`}
             >
-              <Image
+              <SafeImage
                 src={image.url}
                 alt={`${productName} ${index + 1}`}
                 fill

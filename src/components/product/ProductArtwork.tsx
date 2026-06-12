@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import type { LucideIcon } from 'lucide-react'
 import {
   BatteryCharging,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getCategoryMedia } from '@/lib/storefront-media'
+import { SafeImage } from '@/components/ui/SafeImage'
 
 type ArtworkTheme = {
   chip: string
@@ -106,7 +106,7 @@ export function ProductArtwork({
     <div className="relative h-full w-full overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
         {mediaSrc ? (
-          <Image
+          <SafeImage
             src={mediaSrc}
             alt={mediaAlt}
             fill

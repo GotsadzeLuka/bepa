@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState, useTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Check, Eye, Heart, ShoppingCart } from 'lucide-react'
@@ -20,6 +19,7 @@ import {
 } from '@/lib/catalog'
 import { getProductMedia } from '@/lib/storefront-media'
 import { useCartStore } from '@/store/cart'
+import { SafeImage } from '@/components/ui/SafeImage'
 
 interface ProductCardProps {
   product: StoreProduct
@@ -74,7 +74,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="relative aspect-[0.9] overflow-hidden bg-slate-950">
         <Link href={`/product/${product.slug}`} className="absolute inset-0">
           {imageUrl ? (
-            <Image
+            <SafeImage
               src={imageUrl}
               alt={media.alt || name}
               fill

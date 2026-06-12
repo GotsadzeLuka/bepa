@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import {
@@ -16,6 +15,7 @@ import {
 import { ProductArtwork } from '@/components/product/ProductArtwork'
 import { ProductCard } from '@/components/product/ProductCard'
 import { Button } from '@/components/ui/button'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { getCategoryName, getDisplayPrice, getProductDescription, getProductName } from '@/lib/catalog'
 import { getCategoryMedia, getProductMedia } from '@/lib/storefront-media'
 import { storefrontService } from '@/lib/storefront'
@@ -197,7 +197,7 @@ export default async function HomePage() {
                       >
                         <div className="relative min-h-[11rem]">
                           {media.src ? (
-                            <Image
+                            <SafeImage
                               src={media.src}
                               alt={media.alt}
                               fill
@@ -323,7 +323,7 @@ export default async function HomePage() {
               >
                 <div className="relative aspect-[1.18] overflow-hidden">
                   {media.src ? (
-                    <Image
+                    <SafeImage
                       src={media.src}
                       alt={media.alt}
                       fill
@@ -375,7 +375,7 @@ export default async function HomePage() {
               >
                 <div className="relative aspect-[1.08]">
                   {media.src ? (
-                    <Image
+                    <SafeImage
                       src={media.src}
                       alt={media.alt}
                       fill

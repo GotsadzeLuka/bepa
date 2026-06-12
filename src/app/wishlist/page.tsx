@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { Heart, ShoppingBag, Trash2, ShoppingCart } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/store/cart'
 import { toast } from 'sonner'
@@ -184,7 +184,7 @@ export default function WishlistPage() {
               {/* Image */}
               <Link href={`/product/${product.slug}`} className="relative block aspect-square overflow-hidden bg-slate-100">
                 {primaryImage ? (
-                  <Image
+                  <SafeImage
                     src={primaryImage}
                     alt={product.name_en}
                     fill
