@@ -25,6 +25,7 @@ import {
   productImageInputSchema,
   safeImageUrlSchema,
   productVariantInputSchema,
+  validateInput,
 } from '@/lib/validations'
 
 const MAX_ADMIN_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
@@ -373,7 +374,7 @@ export async function createProduct(data: {
   isFeatured: boolean
 }) {
   await requireAdmin()
-  const validated = createProductSchema.parse(data)
+  const validated = validateInput(createProductSchema, data)
   assertSalePriceBelowPrice(validated.price, validated.salePrice)
 
   const product = await prisma.product.create({
@@ -413,7 +414,7 @@ export async function updateProduct(
 ) {
   await requireAdmin()
   const productId = uuidSchema.parse(id)
-  const validated = updateProductSchema.parse(data)
+  const validated = validateInput(updateProductSchema, data)
   const existing = await prisma.product.findUnique({
     where: { id: productId },
     select: { slug: true, price: true, salePrice: true },
@@ -599,7 +600,7 @@ export async function syncProductVariants(
 ) {
   await requireAdmin()
   const validatedProductId = uuidSchema.parse(productId)
-  const validatedVariants = variants.map((variant) => productVariantInputSchema.parse(variant))
+  const validatedVariants = variants.map((variant) => validateInput(productVariantInputSchema, variant))
   const product = await prisma.product.findUnique({
     where: { id: validatedProductId },
     select: { id: true, slug: true },

@@ -207,6 +207,23 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (formData.price <= 0) {
+      toast.error('Price must be positive')
+      return
+    }
+
+    if (formData.sale_price !== null && formData.sale_price <= 0) {
+      toast.error('Sale price must be positive')
+      return
+    }
+
+    const invalidVariant = variants.find((variant) => variant.price <= 0)
+    if (invalidVariant) {
+      toast.error('Variant price must be positive')
+      return
+    }
+
     setFormLoading(true)
 
     try {
@@ -436,6 +453,7 @@ export default function ProductsPage() {
                     <Input
                       type="number"
                       step="0.01"
+                      min="0.01"
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                       required
@@ -447,6 +465,7 @@ export default function ProductsPage() {
                     <Input
                       type="number"
                       step="0.01"
+                      min="0.01"
                       value={formData.sale_price || ''}
                       onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? parseFloat(e.target.value) : null })}
                       placeholder="Leave empty for no sale"
@@ -543,6 +562,8 @@ export default function ProductsPage() {
                       <Label className="text-xs text-zinc-400">Price</Label>
                       <Input
                         type="number"
+                        step="0.01"
+                        min="0.01"
                         value={variant.price}
                         onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
                         className="bg-zinc-700 border-zinc-600 text-white"
