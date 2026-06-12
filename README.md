@@ -48,7 +48,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 `DATABASE_POOL_MAX` optionally limits the Postgres pool size. Vercel defaults to `1` to avoid exhausting small Supabase pooler limits.
 
-`BEPA_STOREFRONT_MODE=database` makes storefront database read failures throw instead of returning empty results. Runtime mock catalog data is not used.
+`BEPA_STOREFRONT_MODE=database` makes storefront database read failures throw instead of returning empty results.
 
 ## Database And Storage
 

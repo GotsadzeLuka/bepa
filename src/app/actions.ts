@@ -5,12 +5,6 @@ import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
 import { revalidateAdminCache, revalidateProductCache } from '@/lib/cache'
 import {
-  canCheckoutDemoCatalog,
-  createDemoOrder,
-  isDemoProductId,
-  isDemoVariantId,
-} from '@/lib/demo-catalog'
-import {
   createOrderSchema,
   createReviewSchema,
   updateProfileSchema,
@@ -224,27 +218,11 @@ export async function createOrder(data: {
   })
 
   if (hasInvalidCartIds) {
-    throw new Error('Your cart contains stale demo items. Remove them and add current catalog products again.')
+    throw new Error('Your cart contains stale items. Remove them and add current catalog products again.')
   }
 
   const validated = createOrderSchema.parse(data)
   const authUser = await getAuthUser()
-  const containsDemoCatalogItems = validated.items.some(
-    (item) => isDemoProductId(item.productId) || (item.variantId ? isDemoVariantId(item.variantId) : false)
-  )
-
-  if (containsDemoCatalogItems) {
-    if (!canCheckoutDemoCatalog()) {
-      throw new Error('Preview catalog items cannot be checked out in production. Seed the database catalog first.')
-    }
-
-    return createDemoOrder({
-      items: validated.items,
-      shippingAddress: validated.shippingAddress,
-      notes: validated.notes,
-      userId: authUser?.id ?? null,
-    })
-  }
 
   const order = await prisma.$transaction(async (tx) => {
     const productIds = [...new Set(validated.items.map((item) => item.productId))]

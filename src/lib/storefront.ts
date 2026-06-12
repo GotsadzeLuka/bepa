@@ -9,19 +9,9 @@ import {
   type StoreProductFilters,
   type StoreProductResult,
 } from '@/lib/catalog'
-import {
-  canUseDemoCatalog,
-  demoCategories,
-  getDemoHomePageData,
-  getDemoProductBySlug,
-  getDemoProductReviews,
-  getDemoProducts,
-  getDemoRelatedProducts,
-} from '@/lib/demo-catalog'
 import { productFilterSchema, slugSchema, uuidSchema } from '@/lib/validations'
 
 const requireDatabaseStorefront = process.env.BEPA_STOREFRONT_MODE === 'database'
-const storefrontDemoMode = process.env.BEPA_STOREFRONT_MODE === 'demo'
 
 function logStorefrontReadFailure(context: string, error: unknown) {
   if (requireDatabaseStorefront) {
@@ -44,21 +34,6 @@ function emptyProductResult(filters: StoreProductFilters): StoreProductResult {
       totalPages: 1,
     },
   }
-}
-
-function shouldUseDemoFallback() {
-  return canUseDemoCatalog()
-}
-
-function resolveHomePageFallback() {
-  return shouldUseDemoFallback()
-    ? getDemoHomePageData()
-    : {
-        categories: [],
-        featuredProducts: [],
-        saleProducts: [],
-        latestProducts: [],
-      }
 }
 
 const productInclude = {
@@ -121,10 +96,6 @@ function buildProductWhere(filters: NonNullable<ReturnType<typeof parseProductFi
 
 const getCachedHomePageData = unstable_cache(
   async () => {
-    if (storefrontDemoMode) {
-      return getDemoHomePageData()
-    }
-
     try {
       const [categories, featuredProducts, saleProducts, latestProducts] = await Promise.all([
         prisma.category.findMany({
@@ -151,23 +122,20 @@ const getCachedHomePageData = unstable_cache(
         }),
       ])
 
-      const homePageData = {
+      return {
         categories: categories.map(normalizeCategory),
         featuredProducts: featuredProducts.map(normalizeProduct),
         saleProducts: saleProducts.map(normalizeProduct),
         latestProducts: latestProducts.map(normalizeProduct),
       }
-
-      const hasRenderableCatalog =
-        homePageData.categories.length > 0 ||
-        homePageData.featuredProducts.length > 0 ||
-        homePageData.saleProducts.length > 0 ||
-        homePageData.latestProducts.length > 0
-
-      return hasRenderableCatalog ? homePageData : resolveHomePageFallback()
     } catch (error) {
       logStorefrontReadFailure('homepage data', error)
-      return resolveHomePageFallback()
+      return {
+        categories: [],
+        featuredProducts: [],
+        saleProducts: [],
+        latestProducts: [],
+      }
     }
   },
   ['storefront-home'],
@@ -185,13 +153,10 @@ const getCachedCategories = unstable_cache(
         orderBy: [{ sortOrder: 'asc' }, { nameEn: 'asc' }],
       })
 
-      const normalizedCategories = categories.map(normalizeCategory)
-      return normalizedCategories.length > 0 || !shouldUseDemoFallback()
-        ? normalizedCategories
-        : demoCategories
+      return categories.map(normalizeCategory)
     } catch (error) {
       logStorefrontReadFailure('categories', error)
-      return shouldUseDemoFallback() ? demoCategories : []
+      return []
     }
   },
   ['storefront-categories'],
@@ -220,10 +185,6 @@ async function getProductsUncached(validatedFilters: NonNullable<ReturnType<type
     ])
 
     const normalizedProducts = products.map(normalizeProduct)
-    if (normalizedProducts.length === 0 && total === 0 && shouldUseDemoFallback()) {
-      return getDemoProducts(validatedFilters)
-    }
-
     return {
       products: normalizedProducts,
       pagination: {
@@ -250,10 +211,10 @@ async function getProductBySlugUncached(validatedSlug: string) {
       return normalizeProduct(product)
     }
 
-    return shouldUseDemoFallback() ? getDemoProductBySlug(validatedSlug) : null
+    return null
   } catch (error) {
     logStorefrontReadFailure('product detail', error)
-    return shouldUseDemoFallback() ? getDemoProductBySlug(validatedSlug) : null
+    return null
   }
 }
 
@@ -272,12 +233,10 @@ async function getRelatedProductsUncached(productId: string, categoryId: string 
     })
 
     const normalizedProducts = relatedProducts.map(normalizeProduct)
-    return normalizedProducts.length > 0 || !shouldUseDemoFallback()
-      ? normalizedProducts
-      : getDemoRelatedProducts(productId, categoryId, limit)
+    return normalizedProducts
   } catch (error) {
     logStorefrontReadFailure('related products', error)
-    return shouldUseDemoFallback() ? getDemoRelatedProducts(productId, categoryId, limit) : []
+    return []
   }
 }
 
@@ -292,12 +251,10 @@ async function getProductReviewsUncached(productId: string) {
     })
 
     const normalizedReviews = reviews.map(normalizeReview)
-    return normalizedReviews.length > 0 || !shouldUseDemoFallback()
-      ? normalizedReviews
-      : getDemoProductReviews(productId)
+    return normalizedReviews
   } catch (error) {
     logStorefrontReadFailure('product reviews', error)
-    return shouldUseDemoFallback() ? getDemoProductReviews(productId) : []
+    return []
   }
 }
 
