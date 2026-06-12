@@ -63,7 +63,13 @@
     "about": "About Us",
     "phone": "Phone",
     "email": "Email",
-    "address": "Address"
+    "address": "Address",
+    "notFoundTitle": "Page not found",
+    "notFoundCopy": "The page you are looking for does not exist or has been moved.",
+    "errorTitle": "Something went wrong",
+    "errorCopy": "An unexpected error occurred. Please try again.",
+    "tryAgain": "Try again",
+    "backToHome": "Back to home"
   },
   "auth": {
     "loginTitle": "Login to your account",

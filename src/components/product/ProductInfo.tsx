@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, Heart, Minus, Plus, ShoppingCart, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { addToWishlist } from '@/app/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -32,6 +33,7 @@ export function ProductInfo({ product, locale, avgRating, reviewCount }: Product
   const addItem = useCartStore((state) => state.addItem)
   const [quantity, setQuantity] = useState(1)
   const [selectedVariant, setSelectedVariant] = useState<StoreProductVariant | null>(product.variants[0] ?? null)
+  const [wishlistPending, startWishlistTransition] = useTransition()
 
   const name = getProductName(product, locale)
   const categoryName = getCategoryName(product.category, locale)
@@ -39,6 +41,11 @@ export function ProductInfo({ product, locale, avgRating, reviewCount }: Product
   const basePrice = selectedVariant ? selectedVariant.price : getDisplayPrice(product)
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock
   const inStock = currentStock > 0
+
+  const handleSelectVariant = (variant: StoreProductVariant) => {
+    setSelectedVariant(variant)
+    setQuantity((current) => Math.min(Math.max(1, current), Math.max(1, variant.stock)))
+  }
 
   const handleAddToCart = () => {
     addItem({
@@ -49,7 +56,18 @@ export function ProductInfo({ product, locale, avgRating, reviewCount }: Product
       price: basePrice,
       quantity,
     })
-    toast.success(`${t('addToCart')} ✓`)
+    toast.success(t('addedToCart'))
+  }
+
+  const handleAddToWishlist = () => {
+    startWishlistTransition(async () => {
+      try {
+        await addToWishlist(product.id)
+        toast.success(t('addToWishlist'))
+      } catch {
+        toast.error('Log in to save database catalog items to your wishlist.')
+      }
+    })
   }
 
   return (
@@ -82,7 +100,11 @@ export function ProductInfo({ product, locale, avgRating, reviewCount }: Product
                 <span className="text-slate-500">({reviewCount} {tp('reviews')})</span>
               </div>
             )}
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
+            <div
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${
+                inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+              }`}
+            >
               {inStock ? (
                 <>
                   <Check className="h-4 w-4" />
@@ -126,7 +148,7 @@ export function ProductInfo({ product, locale, avgRating, reviewCount }: Product
                   variant={selectedVariant?.id === variant.id ? 'default' : 'outline'}
                   size="sm"
                   className="rounded-full px-4"
-                  onClick={() => setSelectedVariant(variant)}
+                  onClick={() => handleSelectVariant(variant)}
                   disabled={variant.stock === 0}
                 >
                   {getVariantName(variant, locale)}
@@ -178,7 +200,14 @@ export function ProductInfo({ product, locale, avgRating, reviewCount }: Product
             <ShoppingCart className="h-5 w-5" />
             {t('addToCart')}
           </Button>
-          <Button size="lg" variant="outline" className="rounded-full px-4">
+          <Button
+            size="lg"
+            variant="outline"
+            className="rounded-full px-4"
+            aria-label={t('addToWishlist')}
+            disabled={wishlistPending}
+            onClick={handleAddToWishlist}
+          >
             <Heart className="h-5 w-5" />
           </Button>
         </div>

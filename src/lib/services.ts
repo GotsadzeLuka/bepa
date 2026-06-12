@@ -679,53 +679,72 @@ export const profileService = {
 
 export const adminStatsService = {
   /**
-   * Get dashboard stats.
+   * Get dashboard stats. Cached under the admin dashboard tag, which every
+   * admin mutation already revalidates via revalidateAdminCache().
    */
   async getDashboardStats() {
-    try {
-      const [productsCount, categoriesCount, ordersCount, customersCount] = await Promise.all([
-        prisma.product.count(),
-        prisma.category.count(),
-        prisma.order.count(),
-        prisma.profile.count({ where: { role: 'user' } }),
-      ])
+    return unstable_cache(
+      async () => {
+        try {
+          const [productsCount, categoriesCount, ordersCount, customersCount] = await Promise.all([
+            prisma.product.count(),
+            prisma.category.count(),
+            prisma.order.count(),
+            prisma.profile.count({ where: { role: 'user' } }),
+          ])
 
-      return {
-        productsCount,
-        categoriesCount,
-        ordersCount,
-        customersCount,
-      }
-    } catch (error) {
-      console.warn('[admin] Unable to load dashboard stats from database.')
-      if (process.env.NODE_ENV === 'development') {
-        console.error(error)
-      }
+          return {
+            productsCount,
+            categoriesCount,
+            ordersCount,
+            customersCount,
+          }
+        } catch (error) {
+          console.warn('[admin] Unable to load dashboard stats from database.')
+          if (process.env.NODE_ENV === 'development') {
+            console.error(error)
+          }
 
-      return {
-        productsCount: 0,
-        categoriesCount: 0,
-        ordersCount: 0,
-        customersCount: 0,
+          return {
+            productsCount: 0,
+            categoriesCount: 0,
+            ordersCount: 0,
+            customersCount: 0,
+          }
+        }
+      },
+      ['admin-dashboard-stats'],
+      {
+        revalidate: 60,
+        tags: [cacheTags.adminDashboard],
       }
-    }
+    )()
   },
 
   /**
    * Get recent orders for admin dashboard.
    */
   async getRecentOrders(limit = 5) {
-    try {
-      return await prisma.order.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      })
-    } catch (error) {
-      console.warn('[admin] Unable to load recent orders from database.')
-      if (process.env.NODE_ENV === 'development') {
-        console.error(error)
+    return unstable_cache(
+      async () => {
+        try {
+          return await prisma.order.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+          })
+        } catch (error) {
+          console.warn('[admin] Unable to load recent orders from database.')
+          if (process.env.NODE_ENV === 'development') {
+            console.error(error)
+          }
+          return []
+        }
+      },
+      ['admin-recent-orders', String(limit)],
+      {
+        revalidate: 60,
+        tags: [cacheTags.adminDashboard],
       }
-      return []
-    }
+    )()
   },
 }

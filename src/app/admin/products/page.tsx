@@ -384,7 +384,7 @@ export default function ProductsPage() {
                       type="number"
                       step="0.01"
                       value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                       required
                       className="bg-zinc-800 border-zinc-700 text-white"
                     />
@@ -405,7 +405,7 @@ export default function ProductsPage() {
                     <Input
                       type="number"
                       value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
                       required
                       className="bg-zinc-800 border-zinc-700 text-white"
                     />
@@ -480,7 +480,7 @@ export default function ProductsPage() {
                       <Input
                         type="number"
                         value={variant.price}
-                        onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value))}
+                        onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
                         className="bg-zinc-700 border-zinc-600 text-white"
                         required
                       />
@@ -490,7 +490,7 @@ export default function ProductsPage() {
                       <Input
                         type="number"
                         value={variant.stock}
-                        onChange={(e) => updateVariant(index, 'stock', parseInt(e.target.value))}
+                        onChange={(e) => updateVariant(index, 'stock', parseInt(e.target.value) || 0)}
                         className="bg-zinc-700 border-zinc-600 text-white"
                         required
                       />

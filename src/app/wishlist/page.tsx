@@ -59,9 +59,10 @@ export default function WishlistPage() {
   }, [supabase])
 
   const checkAuth = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user ?? null
     setUser(user)
-    
+
     if (user) {
       fetchWishlist(user.id)
     } else {
@@ -107,13 +108,17 @@ export default function WishlistPage() {
   // Not logged in
   if (!loading && !user) {
     return (
-      <div className="container py-16 text-center">
-        <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold mb-2">{t('wishlist')}</h1>
-        <p className="text-muted-foreground mb-8">Please login to view your wishlist.</p>
-        <Link href="/login">
-          <Button size="lg">{t('login')}</Button>
-        </Link>
+      <div className="container py-12 sm:py-16">
+        <section className="mx-auto max-w-2xl rounded-[2rem] border border-white/70 bg-white/86 p-8 text-center shadow-[0_24px_72px_-46px_rgba(15,23,42,0.5)] backdrop-blur-xl sm:p-10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-950 text-white">
+            <Heart className="h-8 w-8" />
+          </div>
+          <h1 className="font-display text-3xl font-black tracking-tight text-slate-950">{t('wishlist')}</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">Please login to view your wishlist.</p>
+          <Button asChild size="lg" className="mt-7 rounded-full">
+            <Link href="/login">{t('login')}</Link>
+          </Button>
+        </section>
       </div>
     )
   }
@@ -121,12 +126,12 @@ export default function WishlistPage() {
   // Loading
   if (loading) {
     return (
-      <div className="container py-16">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-zinc-200 rounded" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="container py-8 sm:py-10 lg:py-12">
+        <div className="animate-pulse space-y-6">
+          <div className="h-10 w-56 rounded-full bg-white/60" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-64 bg-zinc-200 rounded-lg" />
+              <div key={i} className="h-80 rounded-[2rem] bg-white/60" />
             ))}
           </div>
         </div>
@@ -137,66 +142,80 @@ export default function WishlistPage() {
   // Empty wishlist
   if (items.length === 0) {
     return (
-      <div className="container py-16 text-center">
-        <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold mb-2">{t('wishlist')}</h1>
-        <p className="text-muted-foreground mb-8">Your wishlist is empty. Start adding products you love!</p>
-        <Link href="/products">
-          <Button size="lg">{t('continueShopping')}</Button>
-        </Link>
+      <div className="container py-12 sm:py-16">
+        <section className="mx-auto max-w-2xl rounded-[2rem] border border-white/70 bg-white/86 p-8 text-center shadow-[0_24px_72px_-46px_rgba(15,23,42,0.5)] backdrop-blur-xl sm:p-10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-950 text-white">
+            <Heart className="h-8 w-8" />
+          </div>
+          <h1 className="font-display text-3xl font-black tracking-tight text-slate-950">{t('wishlist')}</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500">{t('emptyWishlist')}</p>
+          <Button asChild size="lg" className="mt-7 rounded-full">
+            <Link href="/products">{t('continueShopping')}</Link>
+          </Button>
+        </section>
       </div>
     )
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-8">
-        {t('wishlist')} ({items.length})
-      </h1>
+    <div className="container py-8 sm:py-10 lg:py-12">
+      <div className="mb-7">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+          {items.length} {t('items')}
+        </p>
+        <h1 className="mt-2 font-display text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+          {t('wishlist')}
+        </h1>
+      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item) => {
           const product = item.product
+          if (!product) return null
           const primaryImage = product.images?.find((img) => img.is_primary)?.url || product.images?.[0]?.url
           const price = product.sale_price || product.price
           const hasDiscount = product.sale_price && product.sale_price < product.price
 
           return (
-            <div key={item.id} className="group bg-white border rounded-lg overflow-hidden">
+            <div
+              key={item.id}
+              className="group overflow-hidden rounded-[2rem] border border-white/70 bg-white/88 shadow-[0_20px_58px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_32px_90px_-42px_rgba(15,23,42,0.58)]"
+            >
               {/* Image */}
-              <Link href={`/product/${product.slug}`} className="relative block aspect-square">
+              <Link href={`/product/${product.slug}`} className="relative block aspect-square overflow-hidden bg-slate-100">
                 {primaryImage ? (
                   <Image
                     src={primaryImage}
                     alt={product.name_en}
                     fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
                   />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center bg-zinc-100">
-                    <ShoppingBag className="h-12 w-12 text-zinc-300" />
+                  <div className="flex h-full w-full items-center justify-center bg-slate-900 text-white/30">
+                    <ShoppingBag className="h-12 w-12" />
                   </div>
                 )}
 
                 {hasDiscount && (
-                  <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                    SALE
+                  <span className="absolute left-3 top-3 rounded-full bg-rose-500 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                    {t('sale')}
                   </span>
                 )}
               </Link>
 
               {/* Info */}
-              <div className="p-4">
+              <div className="p-4 sm:p-5">
                 <Link href={`/product/${product.slug}`}>
-                  <h3 className="font-medium line-clamp-2 hover:text-primary mb-2">
+                  <h3 className="mb-2 line-clamp-2 font-semibold text-slate-950 transition-colors hover:text-primary">
                     {product.name_en}
                   </h3>
                 </Link>
 
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="font-bold text-lg">₾{price}</span>
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="text-xl font-black tracking-tight text-slate-950">₾{price}</span>
                   {hasDiscount && (
-                    <span className="text-sm text-muted-foreground line-through">
+                    <span className="text-sm text-slate-400 line-through">
                       ₾{product.price}
                     </span>
                   )}
@@ -204,17 +223,18 @@ export default function WishlistPage() {
 
                 <div className="flex gap-2">
                   <Button
-                    className="flex-1"
+                    className="flex-1 rounded-full"
                     size="sm"
                     onClick={() => handleAddToCart(item)}
                   >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <ShoppingCart className="h-4 w-4" />
                     {t('addToCart')}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    className="rounded-full border-slate-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                    aria-label={t('removeFromWishlist')}
                     onClick={() => removeFromWishlist(item.id)}
                   >
                     <Trash2 className="h-4 w-4" />

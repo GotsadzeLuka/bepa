@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -15,6 +16,31 @@ async function getNewsItem(slug: string) {
   return newsService.getNewsBySlug(slug)
 }
 
+// Served from the same unstable_cache entry as the page body, so this adds
+// no extra database query.
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const news = await getNewsItem(slug)
+
+  if (!news) {
+    notFound()
+  }
+
+  const title = `${news.title} | BEPA`
+  const description = news.excerpt?.slice(0, 160) ?? undefined
+  const image = getSafeImageSrc(news.imageUrl)
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: image ? [{ url: image }] : undefined,
+    },
+  }
+}
+
 export default async function NewsDetailPage({ params }: PageProps) {
   const { slug } = await params
   const news = await getNewsItem(slug)
@@ -23,6 +49,9 @@ export default async function NewsDetailPage({ params }: PageProps) {
     notFound()
   }
   const imageUrl = getSafeImageSrc(news.imageUrl)
+  // unstable_cache round-trips through JSON, so createdAt can arrive as a
+  // string on warm cache hits.
+  const createdAt = new Date(news.createdAt)
 
   return (
     <div className="container py-8 sm:py-10 lg:py-12">
@@ -38,8 +67,8 @@ export default async function NewsDetailPage({ params }: PageProps) {
         <header className="mb-8 overflow-hidden rounded-[2.25rem] border border-white/70 bg-white/86 p-6 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-8">
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-500">
             <Calendar className="h-4 w-4" />
-            <time dateTime={news.createdAt.toISOString()}>
-              {news.createdAt.toLocaleDateString('en-US', {
+            <time dateTime={createdAt.toISOString()}>
+              {createdAt.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',

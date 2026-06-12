@@ -369,11 +369,11 @@ export async function createOrder(data: {
     return order
   })
 
-  for (const productId of [...new Set(validated.items.map((item) => item.productId))]) {
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true, slug: true },
-    })
+  const orderedProducts = await prisma.product.findMany({
+    where: { id: { in: [...new Set(validated.items.map((item) => item.productId))] } },
+    select: { id: true, slug: true },
+  })
+  for (const product of orderedProducts) {
     revalidateProductCache(product)
   }
 

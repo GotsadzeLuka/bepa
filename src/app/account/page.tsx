@@ -22,7 +22,8 @@ export default function AccountPage() {
 
   const loadProfile = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       setUser(user)
@@ -82,75 +83,75 @@ export default function AccountPage() {
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="h-8 w-32 bg-zinc-200 rounded" />
-        <div className="h-64 bg-zinc-200 rounded-lg" />
+        <div className="h-8 w-40 rounded-full bg-white/60" />
+        <div className="h-72 rounded-[2rem] bg-white/60" />
       </div>
     )
   }
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Profile</h2>
+      <h2 className="mb-6 font-display text-2xl font-black tracking-tight text-slate-950">Profile</h2>
 
-      <div className="bg-zinc-50 rounded-lg p-6">
+      <div className="rounded-[2rem] border border-white/70 bg-white/86 p-6 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl sm:p-7">
         {/* Avatar */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="h-20 w-20 rounded-full bg-zinc-200 flex items-center justify-center">
-            <User className="h-10 w-10 text-zinc-500" />
+        <div className="mb-8 flex items-center gap-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-slate-950 text-white">
+            <User className="h-9 w-9" />
           </div>
           <div>
-            <h3 className="font-medium">{formData.full_name || 'User'}</h3>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <h3 className="font-semibold text-slate-950">{formData.full_name || 'User'}</h3>
+            <p className="text-sm text-slate-500">{user?.email}</p>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={user?.email || ''}
                 disabled
-                className="bg-white"
+                className="h-11 rounded-xl bg-white"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-slate-400">
                 Email cannot be changed
               </p>
             </div>
-            <div>
-              <Label htmlFor="full_name">Full Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="full_name" className="text-sm font-semibold text-slate-700">Full Name</Label>
               <Input
                 id="full_name"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="bg-white"
+                className="h-11 rounded-xl bg-white"
               />
             </div>
-            <div>
-              <Label htmlFor="phone">Phone</Label>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-semibold text-slate-700">Phone</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="bg-white"
+                className="h-11 rounded-xl bg-white"
               />
             </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="address">Address</Label>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="address" className="text-sm font-semibold text-slate-700">Address</Label>
               <Input
                 id="address"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="bg-white"
+                className="h-11 rounded-xl bg-white"
               />
             </div>
           </div>
 
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" size="lg" className="rounded-full px-7" disabled={saving}>
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </form>

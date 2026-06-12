@@ -1,9 +1,10 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { ProductCard } from '@/components/product/ProductCard'
 import { ProductImages } from '@/components/product/ProductImages'
 import { ProductInfo } from '@/components/product/ProductInfo'
-import { getProductDescription } from '@/lib/catalog'
+import { getPrimaryProductImage, getProductDescription, getProductName } from '@/lib/catalog'
 import { storefrontService } from '@/lib/storefront'
 
 interface Props {
@@ -11,6 +12,33 @@ interface Props {
 }
 
 export const revalidate = 300
+
+// Served from the same unstable_cache entry as the page body, so this adds
+// no extra database query.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  const [locale, product] = await Promise.all([getLocale(), storefrontService.getProductBySlug(slug)])
+
+  if (!product) {
+    // Resolved before streaming starts, so missing products return a real
+    // 404 status instead of a streamed 200 shell.
+    notFound()
+  }
+
+  const title = `${getProductName(product, locale)} | BEPA`
+  const description = getProductDescription(product, locale)?.slice(0, 160) ?? undefined
+  const image = getPrimaryProductImage(product)
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: image ? [{ url: image }] : undefined,
+    },
+  }
+}
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params

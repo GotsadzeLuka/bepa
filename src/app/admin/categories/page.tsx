@@ -218,7 +218,7 @@ export default function CategoriesPage() {
                   <Input
                     type="number"
                     value={formData.sortOrder}
-                    onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
                     className="bg-zinc-800 border-zinc-700 text-white"
                   />
                 </div>

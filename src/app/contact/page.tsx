@@ -53,7 +53,7 @@ export default function ContactPage() {
     {
       icon: Phone,
       title: 'Phone',
-      content: '+995 555 123 456',
+      content: '032 2 05 26 27',
     },
     {
       icon: Mail,
@@ -131,8 +131,8 @@ export default function ContactPage() {
         <div className="lg:col-span-2">
           <div className="rounded-[2rem] border border-white/70 bg-white/86 p-6 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl md:p-8">
             <h2 className="font-display text-2xl font-black tracking-tight text-slate-950">Send us a message</h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Name *</Label>

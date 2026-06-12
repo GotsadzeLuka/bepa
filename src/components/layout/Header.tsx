@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   ChevronDown,
@@ -44,23 +44,13 @@ export function Header({ categories }: HeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
   const navCategories = categories.slice(0, 6)
-  const supabase = hasSupabaseConfig ? createClient() : null
+  const supabase = useMemo(() => (hasSupabaseConfig ? createClient() : null), [])
 
   useEffect(() => {
     if (!supabase) return
 
-    const getUser = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      if (currentUser) {
-        setUser({ id: currentUser.id, email: currentUser.email || '' })
-      }
-    }
-
-    getUser()
-
+    // onAuthStateChange emits INITIAL_SESSION with the locally stored session
+    // right away, so no extra auth round-trip is needed on page load.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {

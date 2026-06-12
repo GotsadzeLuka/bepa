@@ -427,6 +427,21 @@ CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
 CREATE INDEX IF NOT EXISTS idx_news_slug ON news(slug);
 CREATE INDEX IF NOT EXISTS idx_news_is_published ON news(is_published);
 
+-- Composite indexes matching storefront query shapes (mirrored in
+-- prisma/schema.prisma @@index declarations; names follow Prisma defaults).
+CREATE INDEX IF NOT EXISTS products_is_active_created_at_idx ON products(is_active, created_at);
+CREATE INDEX IF NOT EXISTS products_is_active_is_featured_created_at_idx ON products(is_active, is_featured, created_at);
+CREATE INDEX IF NOT EXISTS products_category_id_is_active_idx ON products(category_id, is_active);
+CREATE INDEX IF NOT EXISTS categories_is_active_sort_order_idx ON categories(is_active, sort_order);
+CREATE INDEX IF NOT EXISTS product_images_product_id_sort_order_idx ON product_images(product_id, sort_order);
+CREATE INDEX IF NOT EXISTS product_variants_product_id_is_active_idx ON product_variants(product_id, is_active);
+CREATE INDEX IF NOT EXISTS orders_user_id_created_at_idx ON orders(user_id, created_at);
+CREATE INDEX IF NOT EXISTS orders_created_at_idx ON orders(created_at);
+CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS order_items_product_id_idx ON order_items(product_id);
+CREATE INDEX IF NOT EXISTS reviews_product_id_is_approved_created_at_idx ON reviews(product_id, is_approved, created_at);
+CREATE INDEX IF NOT EXISTS news_is_published_created_at_idx ON news(is_published, created_at);
+
 -- =====================================================
 -- DATA API GRANTS
 -- =====================================================

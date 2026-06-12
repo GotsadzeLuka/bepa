@@ -2,13 +2,15 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight, Calendar, Newspaper } from 'lucide-react'
-import type { News } from '@prisma/client'
 import { newsService } from '@/lib/services'
 import { getSafeImageSrc } from '@/lib/storefront-media'
 
 export const revalidate = 300
 
-function NewsGrid({ news }: { news: News[] }) {
+// Fetches inside the suspended subtree so the page shell streams immediately
+// and the skeleton actually shows while news loads.
+async function NewsGrid() {
+  const news = await newsService.getPublishedNews()
   if (news.length === 0) {
     return (
       <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white/80 px-6 py-16 text-center shadow-sm">
@@ -27,6 +29,9 @@ function NewsGrid({ news }: { news: News[] }) {
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
       {news.map((item) => {
         const imageUrl = getSafeImageSrc(item.imageUrl)
+        // unstable_cache round-trips through JSON, so createdAt can arrive as
+        // a string on warm cache hits.
+        const createdAt = new Date(item.createdAt)
         return (
           <Link
             key={item.id}
@@ -53,8 +58,8 @@ function NewsGrid({ news }: { news: News[] }) {
             <div className="p-5">
               <div className="mb-3 flex items-center gap-2 text-xs font-medium text-slate-500">
                 <Calendar className="h-4 w-4" />
-                <time dateTime={item.createdAt.toISOString()}>
-                  {item.createdAt.toLocaleDateString('en-US', {
+                <time dateTime={createdAt.toISOString()}>
+                  {createdAt.toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -96,9 +101,7 @@ function LoadingSkeleton() {
   )
 }
 
-export default async function NewsPage() {
-  const news = await newsService.getPublishedNews()
-
+export default function NewsPage() {
   return (
     <div className="container py-8 sm:py-10 lg:py-12">
       <section className="mb-8 overflow-hidden rounded-[2.25rem] border border-white/70 bg-[linear-gradient(135deg,#fff8ef_0%,#f7f0e7_48%,#f8f5ef_100%)] p-6 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)] sm:p-8">
@@ -112,7 +115,7 @@ export default async function NewsPage() {
       </section>
 
       <Suspense fallback={<LoadingSkeleton />}>
-        <NewsGrid news={news} />
+        <NewsGrid />
       </Suspense>
     </div>
   )

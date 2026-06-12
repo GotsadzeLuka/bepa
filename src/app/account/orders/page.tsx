@@ -40,12 +40,12 @@ interface Order {
 }
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  processing: 'bg-purple-100 text-purple-800',
+  pending: 'bg-amber-100 text-amber-800',
+  confirmed: 'bg-sky-100 text-sky-800',
+  processing: 'bg-violet-100 text-violet-800',
   shipped: 'bg-indigo-100 text-indigo-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
+  delivered: 'bg-emerald-100 text-emerald-800',
+  cancelled: 'bg-rose-100 text-rose-800',
 }
 
 export default function OrdersPage() {
@@ -56,7 +56,8 @@ export default function OrdersPage() {
 
   const loadOrders = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       const { data, error } = await supabase
@@ -110,9 +111,9 @@ export default function OrdersPage() {
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="h-8 w-32 bg-zinc-200 rounded" />
+        <div className="h-8 w-40 rounded-full bg-white/60" />
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-24 bg-zinc-200 rounded-lg" />
+          <div key={i} className="h-24 rounded-[1.75rem] bg-white/60" />
         ))}
       </div>
     )
@@ -120,22 +121,24 @@ export default function OrdersPage() {
 
   if (orders.length === 0) {
     return (
-      <div className="text-center py-12">
-        <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">No Orders Yet</h2>
-        <p className="text-muted-foreground mb-8">
+      <div className="rounded-[2rem] border border-white/70 bg-white/86 px-6 py-14 text-center shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-950 text-white">
+          <Package className="h-8 w-8" />
+        </div>
+        <h2 className="font-display text-2xl font-black tracking-tight text-slate-950">No Orders Yet</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-slate-500">
           You haven&apos;t placed any orders yet. Start shopping!
         </p>
-        <Link href="/products">
-          <Button>Browse Products</Button>
-        </Link>
+        <Button asChild size="lg" className="mt-6 rounded-full">
+          <Link href="/products">Browse Products</Link>
+        </Button>
       </div>
     )
   }
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">My Orders</h2>
+      <h2 className="mb-6 font-display text-2xl font-black tracking-tight text-slate-950">My Orders</h2>
 
       <div className="space-y-4">
         {orders.map((order) => {
@@ -144,50 +147,50 @@ export default function OrdersPage() {
           return (
             <div
               key={order.id}
-              className="bg-zinc-50 rounded-lg overflow-hidden"
+              className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/86 shadow-[0_18px_56px_-38px_rgba(15,23,42,0.42)] backdrop-blur-xl"
             >
               {/* Order Header */}
               <button
                 onClick={() => toggleOrder(order.id)}
-                className="w-full p-4 flex items-center justify-between hover:bg-zinc-100 transition-colors"
+                className="flex w-full items-center justify-between p-4 transition-colors hover:bg-white sm:p-5"
               >
                 <div className="flex items-center gap-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Order ID</p>
-                    <p className="font-mono font-medium">
+                  <div className="text-left">
+                    <p className="text-xs text-slate-500">Order ID</p>
+                    <p className="font-mono text-sm font-semibold text-slate-950">
                       {order.id.slice(0, 8).toUpperCase()}
                     </p>
                   </div>
-                  <div className="hidden sm:block">
-                    <p className="text-sm text-muted-foreground">Date</p>
-                    <p className="font-medium">{formatDate(order.created_at)}</p>
+                  <div className="hidden text-left sm:block">
+                    <p className="text-xs text-slate-500">Date</p>
+                    <p className="text-sm font-medium text-slate-800">{formatDate(order.created_at)}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge className={cn('capitalize', statusColors[order.status])}>
+                  <div className="text-left">
+                    <p className="text-xs text-slate-500">Status</p>
+                    <Badge className={cn('rounded-full capitalize', statusColors[order.status])}>
                       {order.status}
                     </Badge>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="font-bold">₾{order.total.toFixed(2)}</p>
+                    <p className="text-xs text-slate-500">Total</p>
+                    <p className="font-black tracking-tight text-slate-950">₾{order.total.toFixed(2)}</p>
                   </div>
                   {isExpanded ? (
-                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    <ChevronUp className="h-5 w-5 text-slate-400" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    <ChevronDown className="h-5 w-5 text-slate-400" />
                   )}
                 </div>
               </button>
 
               {/* Order Details */}
               {isExpanded && (
-                <div className="border-t p-4 space-y-4">
+                <div className="space-y-5 border-t border-slate-200/80 p-4 sm:p-5">
                   {/* Items */}
                   <div>
-                    <h4 className="font-medium mb-3">Items</h4>
+                    <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Items</h4>
                     <div className="space-y-3">
                       {order.items.map((item) => {
                         const product = item.product
@@ -195,16 +198,17 @@ export default function OrdersPage() {
 
                         return (
                           <div key={item.id} className="flex gap-3">
-                            <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-white shrink-0">
+                            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                               {primaryImage ? (
                                 <Image
                                   src={primaryImage}
                                   alt={product?.name_en || 'Product'}
                                   fill
+                                  sizes="64px"
                                   className="object-cover"
                                 />
                               ) : (
-                                <div className="h-full w-full flex items-center justify-center text-zinc-300">
+                                <div className="flex h-full w-full items-center justify-center text-slate-300">
                                   <ShoppingBag className="h-6 w-6" />
                                 </div>
                               )}
@@ -213,21 +217,21 @@ export default function OrdersPage() {
                               {product ? (
                                 <Link
                                   href={`/product/${product.slug}`}
-                                  className="font-medium hover:text-primary"
+                                  className="text-sm font-semibold text-slate-950 hover:text-primary"
                                 >
                                   {product.name_en}
                                 </Link>
                               ) : (
-                                <p className="font-medium text-muted-foreground">
+                                <p className="text-sm font-medium text-slate-500">
                                   Product not available
                                 </p>
                               )}
-                              <p className="text-sm text-muted-foreground">
+                              <p className="mt-0.5 text-sm text-slate-500">
                                 Qty: {item.quantity} × ₾{item.price}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="font-medium">
+                              <p className="text-sm font-semibold text-slate-950">
                                 ₾{(item.quantity * item.price).toFixed(2)}
                               </p>
                             </div>
@@ -240,8 +244,8 @@ export default function OrdersPage() {
                   {/* Shipping Address */}
                   {order.shipping_address && (
                     <div>
-                      <h4 className="font-medium mb-2">Shipping Address</h4>
-                      <div className="text-sm text-muted-foreground">
+                      <h4 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Shipping Address</h4>
+                      <div className="text-sm leading-6 text-slate-600">
                         <p>
                           {order.shipping_address.firstName}{' '}
                           {order.shipping_address.lastName}
@@ -249,7 +253,7 @@ export default function OrdersPage() {
                         <p>{order.shipping_address.address}</p>
                         <p>
                           {order.shipping_address.city}
-                          {order.shipping_address.postalCode && 
+                          {order.shipping_address.postalCode &&
                             `, ${order.shipping_address.postalCode}`}
                         </p>
                         <p>{order.shipping_address.phone}</p>

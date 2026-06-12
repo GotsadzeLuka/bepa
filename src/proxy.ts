@@ -7,6 +7,11 @@ const PUBLIC_ROUTE_STALE_SECONDS = 86400
 const publicCacheableRoutes = ['/', '/products', '/product', '/news', '/contact']
 const privateRoutePrefixes = ['/admin', '/account', '/wishlist', '/cart', '/checkout', '/login', '/register', '/auth']
 
+// Routes whose middleware behavior depends on auth state. Everything else
+// skips the Supabase session lookup entirely, so public route hits stay
+// network-free.
+const authSensitiveRoutePrefixes = ['/admin', '/account', '/wishlist', '/orders', '/login', '/register']
+
 function getSupabaseOrigin() {
   if (!hasSupabaseConfig) return ''
 
@@ -86,6 +91,12 @@ function isPublicCacheableRequest(request: NextRequest) {
   return publicCacheableRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 }
 
+function isAuthSensitiveRequest(pathname: string) {
+  return authSensitiveRoutePrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )
+}
+
 function withRouteHeaders(request: NextRequest, response: NextResponse) {
   withSecurityHeaders(response)
 
@@ -147,6 +158,13 @@ export async function proxy(request: NextRequest) {
     return withRouteHeaders(request, NextResponse.redirect(redirectUrl))
   }
 
+  // Public storefront routes render no server-side auth state, so skip the
+  // Supabase round-trip entirely. The browser client keeps its own session
+  // fresh, and protected routes below still refresh cookies server-side.
+  if (!isAuthSensitiveRequest(pathname)) {
+    return withRouteHeaders(request, supabaseResponse)
+  }
+
   const { supabaseUrl, supabasePublishableKey } = getSupabaseClientEnv()
 
   const supabase = createServerClient(
@@ -168,9 +186,17 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // getClaims() verifies the JWT locally when the project uses asymmetric
+  // keys (refreshing expired sessions through the cookie adapter), which is
+  // far cheaper than a getUser() network round-trip on every protected hit.
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const claims = claimsData?.claims
+  const user = claims?.sub
+    ? {
+        id: claims.sub,
+        app_metadata: (claims.app_metadata ?? {}) as Record<string, unknown>,
+      }
+    : null
 
   // Admin routes protection
   if (pathname.startsWith('/admin')) {

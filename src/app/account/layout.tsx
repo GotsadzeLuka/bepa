@@ -34,14 +34,16 @@ export default function AccountLayout({
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
+    // Middleware already guards /account server-side; a local session read is
+    // enough for UI gating and avoids an auth round-trip on every visit.
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session?.user) {
       router.push('/login')
       return
     }
 
-    setUser(user)
+    setUser(session.user)
     setLoading(false)
   }, [router, supabase])
 
@@ -57,12 +59,12 @@ export default function AccountLayout({
 
   if (loading) {
     return (
-      <div className="container py-8">
+      <div className="container py-8 sm:py-10 lg:py-12">
         <div className="animate-pulse">
-          <div className="h-8 w-48 bg-zinc-200 rounded mb-8" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="h-64 bg-zinc-200 rounded-lg" />
-            <div className="md:col-span-3 h-96 bg-zinc-200 rounded-lg" />
+          <div className="mb-8 h-10 w-56 rounded-full bg-white/60" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+            <div className="h-72 rounded-[2rem] bg-white/60" />
+            <div className="h-96 rounded-[2rem] bg-white/60 md:col-span-3" />
           </div>
         </div>
       </div>
@@ -70,21 +72,26 @@ export default function AccountLayout({
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-8">My Account</h1>
+    <div className="container py-8 sm:py-10 lg:py-12">
+      <div className="mb-7">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">BEPA</p>
+        <h1 className="mt-2 font-display text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+          My Account
+        </h1>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4 md:items-start">
         {/* Sidebar */}
         <div className="md:col-span-1">
-          <div className="bg-zinc-50 rounded-lg p-4">
+          <div className="rounded-[2rem] border border-white/70 bg-white/86 p-4 shadow-[0_20px_64px_-44px_rgba(15,23,42,0.48)] backdrop-blur-xl">
             {/* User Info */}
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-              <div className="h-12 w-12 rounded-full bg-zinc-200 flex items-center justify-center">
-                <User className="h-6 w-6 text-zinc-500" />
+            <div className="mb-5 flex items-center gap-3 border-b border-slate-200/80 pb-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                <User className="h-6 w-6" />
               </div>
               <div className="min-w-0">
-                <p className="font-medium truncate">{user?.email}</p>
-                <p className="text-sm text-muted-foreground">Member</p>
+                <p className="truncate text-sm font-semibold text-slate-950">{user?.email}</p>
+                <p className="text-xs text-slate-500">Member</p>
               </div>
             </div>
 
@@ -99,10 +106,10 @@ export default function AccountLayout({
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                      'flex min-h-10 items-center gap-3 rounded-full px-4 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-white font-medium shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-white/50'
+                        ? 'bg-slate-950 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-white hover:text-slate-950'
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -113,13 +120,13 @@ export default function AccountLayout({
             </nav>
 
             {/* Logout */}
-            <div className="mt-6 pt-4 border-t">
+            <div className="mt-5 border-t border-slate-200/80 pt-4">
               <Button
                 variant="ghost"
-                className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+                className="w-full justify-start rounded-full text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                 onClick={handleLogout}
               >
-                <LogOut className="h-4 w-4 mr-2" />
+                <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>
             </div>
