@@ -28,8 +28,13 @@ import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import type { Category } from '@/types/database'
 import { getSafeImageSrc } from '@/lib/storefront-media'
 import { SafeImage } from '@/components/ui/SafeImage'
+import { useTranslations } from 'next-intl'
 
 export default function CategoriesPage() {
+  const t = useTranslations('admin.categories')
+  const common = useTranslations('admin.common')
+  const confirm = useTranslations('admin.confirm')
+  const toastText = useTranslations('admin.toast')
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -56,10 +61,10 @@ export default function CategoriesPage() {
       const data = await getCategoriesAdmin()
       setCategories(data as unknown as Category[])
     } catch {
-      toast.error('Failed to fetch categories')
+      toast.error(toastText('fetchCategoriesFailed'))
     }
     setLoading(false)
-  }, [])
+  }, [toastText])
 
   useEffect(() => {
     fetchCategories()
@@ -131,17 +136,17 @@ export default function CategoriesPage() {
 
       if (editingCategory) {
         await updateCategory(editingCategory.id, categoryData)
-        toast.success('Category updated successfully')
+        toast.success(toastText('categoryUpdated'))
       } else {
         await createCategory(categoryData)
-        toast.success('Category created successfully')
+        toast.success(toastText('categoryCreated'))
       }
 
       setDialogOpen(false)
       resetForm()
       fetchCategories()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'An error occurred')
+      toast.error(error instanceof Error ? error.message : toastText('genericError'))
     } finally {
       setFormLoading(false)
     }
@@ -153,11 +158,11 @@ export default function CategoriesPage() {
 
     try {
       await deleteCategory(deleteTarget.id)
-      toast.success('Category deleted')
+      toast.success(toastText('categoryDeleted'))
       setDeleteTarget(null)
       fetchCategories()
     } catch {
-      toast.error('Failed to delete category')
+      toast.error(toastText('deleteCategoryFailed'))
     } finally {
       setDeleting(false)
     }
@@ -167,8 +172,8 @@ export default function CategoriesPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Categories</h1>
-          <p className="text-zinc-400 mt-1">Manage product categories</p>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <p className="text-zinc-400 mt-1">{t('subtitle')}</p>
         </div>
         <AdminTableSkeleton rows={5} />
       </div>
@@ -179,8 +184,8 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Categories</h1>
-          <p className="text-zinc-400 mt-1">Manage product categories</p>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <p className="text-zinc-400 mt-1">{t('subtitle')}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open)
@@ -189,19 +194,19 @@ export default function CategoriesPage() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Add Category
+              {t('add')}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-900 border-zinc-800 max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-white">
-                {editingCategory ? 'Edit Category' : 'Add Category'}
+                {editingCategory ? t('edit') : t('add')}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Name (English)</Label>
+                  <Label className="text-zinc-200">{common('nameEn')}</Label>
                   <Input
                     value={formData.nameEn}
                     onChange={handleNameChange}
@@ -210,7 +215,7 @@ export default function CategoriesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Name (Georgian)</Label>
+                  <Label className="text-zinc-200">{common('nameKa')}</Label>
                   <Input
                     value={formData.nameKa}
                     onChange={(e) => setFormData({ ...formData, nameKa: e.target.value })}
@@ -222,7 +227,7 @@ export default function CategoriesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Slug</Label>
+                  <Label className="text-zinc-200">{common('slug')}</Label>
                   <Input
                     value={formData.slug}
                     onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
@@ -231,7 +236,7 @@ export default function CategoriesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Sort Order</Label>
+                  <Label className="text-zinc-200">{t('sortOrder')}</Label>
                   <Input
                     type="number"
                     value={formData.sortOrder}
@@ -242,7 +247,7 @@ export default function CategoriesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-zinc-200">Description (English)</Label>
+                <Label className="text-zinc-200">{common('descriptionEn')}</Label>
                 <Textarea
                   value={formData.descriptionEn}
                   onChange={(e) => setFormData({ ...formData, descriptionEn: e.target.value })}
@@ -252,7 +257,7 @@ export default function CategoriesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-zinc-200">Description (Georgian)</Label>
+                <Label className="text-zinc-200">{common('descriptionKa')}</Label>
                 <Textarea
                   value={formData.descriptionKa}
                   onChange={(e) => setFormData({ ...formData, descriptionKa: e.target.value })}
@@ -262,7 +267,7 @@ export default function CategoriesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-zinc-200">Image</Label>
+                <Label className="text-zinc-200">{common('image')}</Label>
                 <div className="flex items-start gap-4">
                   {getSafeImageSrc(formData.imageUrl) && !imageFile && (
                     <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-zinc-800">
@@ -285,7 +290,7 @@ export default function CategoriesPage() {
                           setImageInputKey((key) => key + 1)
                         }
                       }}
-                      placeholder="https://example.com/image.webp"
+                      placeholder={t('imageUrlPlaceholder')}
                       className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                     />
                     <Input
@@ -296,7 +301,7 @@ export default function CategoriesPage() {
                       className="bg-zinc-800 border-zinc-700 text-white"
                     />
                     {imageFile && (
-                      <p className="text-sm text-zinc-400">Selected: {imageFile.name}</p>
+                      <p className="text-sm text-zinc-400">{common('selected', { name: imageFile.name })}</p>
                     )}
                   </div>
                 </div>
@@ -310,7 +315,7 @@ export default function CategoriesPage() {
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                   className="rounded"
                 />
-                <Label htmlFor="isActive" className="text-zinc-200">Active</Label>
+                <Label htmlFor="isActive" className="text-zinc-200">{common('active')}</Label>
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -323,11 +328,11 @@ export default function CategoriesPage() {
                   }}
                   className="border-zinc-700 text-zinc-300"
                 >
-                  Cancel
+                  {common('cancel')}
                 </Button>
                 <Button type="submit" disabled={formLoading}>
                   {formLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {editingCategory ? 'Update' : 'Create'}
+                  {editingCategory ? common('update') : common('create')}
                 </Button>
               </div>
             </form>
@@ -339,20 +344,20 @@ export default function CategoriesPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-zinc-900">
-              <TableHead className="text-zinc-400">Image</TableHead>
-              <TableHead className="text-zinc-400">Name (EN)</TableHead>
-              <TableHead className="text-zinc-400">Name (KA)</TableHead>
-              <TableHead className="text-zinc-400">Slug</TableHead>
-              <TableHead className="text-zinc-400">Status</TableHead>
-              <TableHead className="text-zinc-400">Order</TableHead>
-              <TableHead className="text-zinc-400 text-right">Actions</TableHead>
+              <TableHead className="text-zinc-400">{common('image')}</TableHead>
+              <TableHead className="text-zinc-400">{common('nameEn')}</TableHead>
+              <TableHead className="text-zinc-400">{common('nameKa')}</TableHead>
+              <TableHead className="text-zinc-400">{common('slug')}</TableHead>
+              <TableHead className="text-zinc-400">{common('status')}</TableHead>
+              <TableHead className="text-zinc-400">{common('order')}</TableHead>
+              <TableHead className="text-zinc-400 text-right">{common('actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {categories.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-zinc-400">
-                  No categories found
+                  {t('noCategories')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -385,7 +390,7 @@ export default function CategoriesPage() {
                           : 'bg-red-500/20 text-red-400'
                       }`}
                     >
-                      {category.is_active ? 'Active' : 'Inactive'}
+                      {category.is_active ? common('active') : common('inactive')}
                     </span>
                   </TableCell>
                   <TableCell className="text-zinc-400">{category.sort_order}</TableCell>
@@ -396,7 +401,7 @@ export default function CategoriesPage() {
                         size="icon"
                         onClick={() => openEditDialog(category)}
                         className="text-zinc-400 hover:text-white"
-                        aria-label={`Edit ${category.name_en}`}
+                        aria-label={t('editLabel', { name: category.name_en })}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -405,7 +410,7 @@ export default function CategoriesPage() {
                         size="icon"
                         onClick={() => setDeleteTarget(category)}
                         className="text-zinc-400 hover:text-red-400"
-                        aria-label={`Delete ${category.name_en}`}
+                        aria-label={t('deleteLabel', { name: category.name_en })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -423,8 +428,8 @@ export default function CategoriesPage() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-        title="Delete category?"
-        description={`"${deleteTarget?.name_en ?? ''}" will be removed; its products become uncategorized.`}
+        title={confirm('deleteCategoryTitle')}
+        description={confirm('deleteCategoryDescription', { name: deleteTarget?.name_en ?? '' })}
         loading={deleting}
         onConfirm={handleDelete}
       />

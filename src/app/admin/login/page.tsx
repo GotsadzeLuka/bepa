@@ -7,8 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { Loader2, Shield } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 export default function AdminLoginPage() {
+  const t = useTranslations('admin.login')
+  const toastText = useTranslations('admin.toast')
   const searchParams = useSearchParams()
   const authError = searchParams.get('error')
   const [loading, setLoading] = useState(false)
@@ -21,7 +24,7 @@ export default function AdminLoginPage() {
 
   const handleGoogleLogin = () => {
     if (!hasSupabaseConfig) {
-      toast.error('Supabase is not configured for admin authentication.')
+      toast.error(toastText('supabaseMissing'))
       return
     }
 
@@ -39,10 +42,10 @@ export default function AdminLoginPage() {
             <Shield className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold text-white">
-            Admin Login
+            {t('title')}
           </CardTitle>
           <CardDescription className="text-zinc-400">
-            Continue with the authorized Google account to access the dashboard.
+            {t('subtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -54,12 +57,12 @@ export default function AdminLoginPage() {
                 G
               </span>
             )}
-            Continue with Google
+            {t('continueGoogle')}
           </Button>
         </CardContent>
         <CardFooter>
           <p className="text-center text-xs leading-5 text-zinc-500">
-            Password sign-in is disabled for administrators.
+            {t('passwordDisabled')}
           </p>
         </CardFooter>
       </Card>

@@ -15,10 +15,16 @@ import { Check, Star, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { toast } from 'sonner'
+import { useLocale, useTranslations } from 'next-intl'
 
 type AdminReview = Awaited<ReturnType<typeof getReviewsAdmin>>[number]
 
 export default function ReviewsPage() {
+  const t = useTranslations('admin.reviews')
+  const common = useTranslations('admin.common')
+  const confirm = useTranslations('admin.confirm')
+  const toastText = useTranslations('admin.toast')
+  const locale = useLocale()
   const [reviews, setReviews] = useState<AdminReview[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<AdminReview | null>(null)
@@ -30,11 +36,11 @@ export default function ReviewsPage() {
       setReviews(data)
     } catch (error) {
       console.error(error)
-      toast.error('Failed to fetch reviews')
+      toast.error(toastText('fetchReviewsFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [toastText])
 
   useEffect(() => {
     fetchReviews()
@@ -43,10 +49,10 @@ export default function ReviewsPage() {
   const handleApprove = async (id: string) => {
     try {
       await approveReview(id)
-      toast.success('Review approved')
+      toast.success(toastText('reviewApproved'))
       fetchReviews()
     } catch {
-      toast.error('Failed to approve review')
+      toast.error(toastText('approveReviewFailed'))
     }
   }
 
@@ -56,11 +62,11 @@ export default function ReviewsPage() {
 
     try {
       await deleteReview(deleteTarget.id)
-      toast.success('Review deleted')
+      toast.success(toastText('reviewDeleted'))
       setDeleteTarget(null)
       fetchReviews()
     } catch {
-      toast.error('Failed to delete review')
+      toast.error(toastText('deleteReviewFailed'))
     } finally {
       setDeleting(false)
     }
@@ -70,8 +76,8 @@ export default function ReviewsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Reviews</h1>
-          <p className="text-zinc-400">Moderate customer product reviews.</p>
+          <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+          <p className="text-zinc-400">{t('subtitle')}</p>
         </div>
         <AdminTableSkeleton rows={5} />
       </div>
@@ -81,33 +87,35 @@ export default function ReviewsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Reviews</h1>
-        <p className="text-zinc-400">Moderate customer product reviews.</p>
+        <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+        <p className="text-zinc-400">{t('subtitle')}</p>
       </div>
 
       {reviews.length === 0 ? (
         <div className="rounded-lg bg-zinc-900/50 py-12 text-center">
           <Star className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-          <h3 className="mb-2 text-lg font-medium text-white">No reviews yet</h3>
-          <p className="text-zinc-400">Customer reviews will appear here.</p>
+          <h3 className="mb-2 text-lg font-medium text-white">{t('noReviews')}</h3>
+          <p className="text-zinc-400">{t('emptyCopy')}</p>
         </div>
       ) : (
         <div className="rounded-lg border border-zinc-800 bg-zinc-900">
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Product</TableHead>
-                <TableHead className="text-zinc-400">Customer</TableHead>
-                <TableHead className="text-zinc-400">Rating</TableHead>
-                <TableHead className="text-zinc-400">Comment</TableHead>
-                <TableHead className="text-zinc-400">Status</TableHead>
-                <TableHead className="text-right text-zinc-400">Actions</TableHead>
+                <TableHead className="text-zinc-400">{common('product')}</TableHead>
+                <TableHead className="text-zinc-400">{common('customer')}</TableHead>
+                <TableHead className="text-zinc-400">{common('rating')}</TableHead>
+                <TableHead className="text-zinc-400">{common('comment')}</TableHead>
+                <TableHead className="text-zinc-400">{common('status')}</TableHead>
+                <TableHead className="text-right text-zinc-400">{common('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reviews.map((review) => (
                 <TableRow key={review.id} className="border-zinc-800 hover:bg-zinc-900">
-                  <TableCell className="font-medium text-white">{review.product.name_en}</TableCell>
+                  <TableCell className="font-medium text-white">
+                    {locale === 'ka' ? review.product.name_ka : review.product.name_en}
+                  </TableCell>
                   <TableCell className="text-zinc-300">
                     {review.user.full_name || review.user.email}
                   </TableCell>
@@ -121,7 +129,7 @@ export default function ReviewsPage() {
                         ? 'bg-green-500/20 text-green-400'
                         : 'bg-yellow-500/20 text-yellow-400'
                     }`}>
-                      {review.is_approved ? 'Approved' : 'Pending'}
+                      {review.is_approved ? common('approved') : common('pending')}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
@@ -130,7 +138,7 @@ export default function ReviewsPage() {
                         variant="ghost"
                         size="icon"
                         className="text-zinc-400 hover:text-green-400"
-                        aria-label={`Approve review for ${review.product.name_en}`}
+                        aria-label={t('approveLabel', { product: locale === 'ka' ? review.product.name_ka : review.product.name_en })}
                         onClick={() => handleApprove(review.id)}
                       >
                         <Check className="h-4 w-4" />
@@ -140,7 +148,7 @@ export default function ReviewsPage() {
                       variant="ghost"
                       size="icon"
                       className="text-zinc-400 hover:text-red-400"
-                      aria-label={`Delete review for ${review.product.name_en}`}
+                      aria-label={t('deleteLabel', { product: locale === 'ka' ? review.product.name_ka : review.product.name_en })}
                       onClick={() => setDeleteTarget(review)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -158,8 +166,10 @@ export default function ReviewsPage() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-        title="Delete review?"
-        description={`The review for "${deleteTarget?.product.name_en ?? ''}" will be permanently removed.`}
+        title={confirm('deleteReviewTitle')}
+        description={confirm('deleteReviewDescription', {
+          product: deleteTarget ? (locale === 'ka' ? deleteTarget.product.name_ka : deleteTarget.product.name_en) : '',
+        })}
         loading={deleting}
         onConfirm={handleDelete}
       />

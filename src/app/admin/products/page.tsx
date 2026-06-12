@@ -45,6 +45,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { getSafeImageSrc } from '@/lib/storefront-media'
 import { SafeImage } from '@/components/ui/SafeImage'
+import { useLocale, useTranslations } from 'next-intl'
 
 interface ProductWithRelations extends Product {
   category: Category | null
@@ -69,12 +70,17 @@ function assertValidImageUrls(urls: string[]) {
         throw new Error()
       }
     } catch {
-      throw new Error(`Invalid image URL: ${value}`)
+      throw new Error(value)
     }
   }
 }
 
 export default function ProductsPage() {
+  const t = useTranslations('admin.products')
+  const common = useTranslations('admin.common')
+  const confirm = useTranslations('admin.confirm')
+  const toastText = useTranslations('admin.toast')
+  const locale = useLocale()
   const [products, setProducts] = useState<ProductWithRelations[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,20 +115,20 @@ export default function ProductsPage() {
       const data = await getProductsAdmin()
       setProducts((data as unknown as ProductWithRelations[]) || [])
     } catch {
-      toast.error('Failed to fetch products')
+      toast.error(toastText('fetchProductsFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [toastText])
 
   const fetchCategories = useCallback(async () => {
     try {
       const data = await getCategoriesAdmin()
       setCategories((data as unknown as Category[]).filter((category) => category.is_active))
     } catch {
-      toast.error('Failed to fetch categories')
+      toast.error(toastText('fetchCategoriesFailed'))
     }
-  }, [])
+  }, [toastText])
 
   useEffect(() => {
     fetchProducts()
@@ -209,18 +215,18 @@ export default function ProductsPage() {
     e.preventDefault()
 
     if (formData.price <= 0) {
-      toast.error('Price must be positive')
+      toast.error(toastText('pricePositive'))
       return
     }
 
     if (formData.sale_price !== null && formData.sale_price <= 0) {
-      toast.error('Sale price must be positive')
+      toast.error(toastText('salePricePositive'))
       return
     }
 
     const invalidVariant = variants.find((variant) => variant.price <= 0)
     if (invalidVariant) {
-      toast.error('Variant price must be positive')
+      toast.error(toastText('variantPricePositive'))
       return
     }
 
@@ -228,7 +234,11 @@ export default function ProductsPage() {
 
     try {
       const parsedImageUrls = parseImageUrlInput(imageUrls)
-      assertValidImageUrls(parsedImageUrls)
+      try {
+        assertValidImageUrls(parsedImageUrls)
+      } catch (error) {
+        throw new Error(t('invalidUrl', { url: error instanceof Error ? error.message : '' }))
+      }
 
       let productId = editingProduct?.id
       const productData = {
@@ -272,12 +282,12 @@ export default function ProductsPage() {
         })))
       }
 
-      toast.success(editingProduct ? 'Product updated successfully' : 'Product created successfully')
+      toast.success(editingProduct ? toastText('productUpdated') : toastText('productCreated'))
       setDialogOpen(false)
       resetForm()
       fetchProducts()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'An error occurred')
+      toast.error(error instanceof Error ? error.message : toastText('genericError'))
     } finally {
       setFormLoading(false)
     }
@@ -289,11 +299,11 @@ export default function ProductsPage() {
 
     try {
       await deleteProduct(deleteTarget.id)
-      toast.success('Product deleted')
+      toast.success(toastText('productDeleted'))
       setDeleteTarget(null)
       fetchProducts()
     } catch {
-      toast.error('Failed to delete product')
+      toast.error(toastText('deleteProductFailed'))
     } finally {
       setDeleting(false)
     }
@@ -304,14 +314,14 @@ export default function ProductsPage() {
       await deleteProductImage(imageId)
       setExistingImages(existingImages.filter(img => img.id !== imageId))
     } catch {
-      toast.error('Failed to remove image')
+      toast.error(toastText('removeImageFailed'))
     }
   }
 
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const visibleProducts = normalizedSearch
     ? products.filter((product) =>
-        [product.name_en, product.name_ka, product.sku ?? '', product.category?.name_en ?? '']
+        [product.name_en, product.name_ka, product.sku ?? '', product.category?.name_en ?? '', product.category?.name_ka ?? '']
           .join(' ')
           .toLowerCase()
           .includes(normalizedSearch)
@@ -322,8 +332,8 @@ export default function ProductsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Products</h1>
-          <p className="text-zinc-400 mt-1">Manage your products</p>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <p className="text-zinc-400 mt-1">{t('subtitle')}</p>
         </div>
         <AdminTableSkeleton rows={6} />
       </div>
@@ -334,8 +344,8 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Products</h1>
-          <p className="text-zinc-400 mt-1">Manage your products</p>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <p className="text-zinc-400 mt-1">{t('subtitle')}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open)
@@ -344,34 +354,34 @@ export default function ProductsPage() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Add Product
+              {t('add')}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-900 border-zinc-800 max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white">
-                {editingProduct ? 'Edit Product' : 'Add Product'}
+                {editingProduct ? t('edit') : t('add')}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6 mt-4">
               {/* Basic Info */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Basic Information</h3>
+                <h3 className="text-lg font-semibold text-white">{t('basicInfo')}</h3>
                 
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Category</Label>
+                  <Label className="text-zinc-200">{common('category')}</Label>
                   <Select
                     value={formData.category_id}
                     onValueChange={(value) => setFormData({ ...formData, category_id: value })}
                     required
                   >
                     <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                      <SelectValue placeholder="Select a category" />
+                      <SelectValue placeholder={t('selectCategory')} />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-800 border-zinc-700">
                       {categories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id} className="text-white">
-                          {cat.name_en}
+                          {locale === 'ka' ? cat.name_ka : cat.name_en}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -380,7 +390,7 @@ export default function ProductsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-zinc-200">Name (English)</Label>
+                    <Label className="text-zinc-200">{common('nameEn')}</Label>
                     <Input
                       value={formData.name_en}
                       onChange={(e) => setFormData({
@@ -393,7 +403,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-zinc-200">Name (Georgian)</Label>
+                    <Label className="text-zinc-200">{common('nameKa')}</Label>
                     <Input
                       value={formData.name_ka}
                       onChange={(e) => setFormData({ ...formData, name_ka: e.target.value })}
@@ -405,7 +415,7 @@ export default function ProductsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-zinc-200">Slug</Label>
+                    <Label className="text-zinc-200">{common('slug')}</Label>
                     <Input
                       value={formData.slug}
                       onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
@@ -414,7 +424,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-zinc-200">SKU</Label>
+                    <Label className="text-zinc-200">{common('sku')}</Label>
                     <Input
                       value={formData.sku}
                       onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
@@ -424,7 +434,7 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Description (English)</Label>
+                  <Label className="text-zinc-200">{common('descriptionEn')}</Label>
                   <Textarea
                     value={formData.description_en}
                     onChange={(e) => setFormData({ ...formData, description_en: e.target.value })}
@@ -434,7 +444,7 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Description (Georgian)</Label>
+                  <Label className="text-zinc-200">{common('descriptionKa')}</Label>
                   <Textarea
                     value={formData.description_ka}
                     onChange={(e) => setFormData({ ...formData, description_ka: e.target.value })}
@@ -446,10 +456,10 @@ export default function ProductsPage() {
 
               {/* Pricing */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Pricing & Stock</h3>
+                <h3 className="text-lg font-semibold text-white">{t('pricingStock')}</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-zinc-200">Price (₾)</Label>
+                    <Label className="text-zinc-200">{t('priceGel')}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -461,19 +471,19 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-zinc-200">Sale Price (₾)</Label>
+                    <Label className="text-zinc-200">{t('salePrice')}</Label>
                     <Input
                       type="number"
                       step="0.01"
                       min="0.01"
                       value={formData.sale_price || ''}
                       onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? parseFloat(e.target.value) : null })}
-                      placeholder="Leave empty for no sale"
+                      placeholder={t('salePlaceholder')}
                       className="bg-zinc-800 border-zinc-700 text-white"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-zinc-200">Stock</Label>
+                    <Label className="text-zinc-200">{common('stock')}</Label>
                     <Input
                       type="number"
                       value={formData.stock}
@@ -487,7 +497,7 @@ export default function ProductsPage() {
 
               {/* Images */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Images</h3>
+                <h3 className="text-lg font-semibold text-white">{t('images')}</h3>
                 {existingImages.length > 0 && (
                   <div className="flex gap-2 flex-wrap">
                     {existingImages.map((img) => (
@@ -503,7 +513,7 @@ export default function ProductsPage() {
                           type="button"
                           onClick={() => removeExistingImage(img.id)}
                           className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5"
-                          aria-label="Remove product image"
+                          aria-label={t('removeImage')}
                         >
                           <X className="h-3 w-3 text-white" />
                         </button>
@@ -519,11 +529,11 @@ export default function ProductsPage() {
                   className="bg-zinc-800 border-zinc-700 text-white"
                 />
                 <div className="space-y-2">
-                  <Label className="text-zinc-200">Image URLs</Label>
+                  <Label className="text-zinc-200">{t('imageUrls')}</Label>
                   <Textarea
                     value={imageUrls}
                     onChange={(e) => setImageUrls(e.target.value)}
-                    placeholder="https://example.com/image.webp"
+                    placeholder={t('imageUrlPlaceholder')}
                     className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                     rows={3}
                   />
@@ -533,15 +543,15 @@ export default function ProductsPage() {
               {/* Variants */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Variants</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('variants')}</h3>
                   <Button type="button" variant="outline" size="sm" onClick={addVariant} className="border-zinc-700">
-                    <Plus className="h-4 w-4 mr-1" /> Add Variant
+                    <Plus className="h-4 w-4 mr-1" /> {t('addVariant')}
                   </Button>
                 </div>
                 {variants.map((variant, index) => (
                   <div key={index} className="grid grid-cols-5 gap-2 items-end p-4 bg-zinc-800 rounded-lg">
                     <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Name (EN)</Label>
+                      <Label className="text-xs text-zinc-400">{common('nameEn')}</Label>
                       <Input
                         value={variant.name_en}
                         onChange={(e) => updateVariant(index, 'name_en', e.target.value)}
@@ -550,7 +560,7 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Name (KA)</Label>
+                      <Label className="text-xs text-zinc-400">{common('nameKa')}</Label>
                       <Input
                         value={variant.name_ka}
                         onChange={(e) => updateVariant(index, 'name_ka', e.target.value)}
@@ -559,7 +569,7 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Price</Label>
+                      <Label className="text-xs text-zinc-400">{common('price')}</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -571,7 +581,7 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Stock</Label>
+                      <Label className="text-xs text-zinc-400">{common('stock')}</Label>
                       <Input
                         type="number"
                         value={variant.stock}
@@ -586,7 +596,7 @@ export default function ProductsPage() {
                       size="icon"
                       onClick={() => removeVariant(index)}
                       className="text-red-400"
-                      aria-label={`Remove variant ${index + 1}`}
+                      aria-label={t('removeVariant', { index: index + 1 })}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -604,7 +614,7 @@ export default function ProductsPage() {
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                     className="rounded"
                   />
-                  <Label htmlFor="is_active" className="text-zinc-200">Active</Label>
+                  <Label htmlFor="is_active" className="text-zinc-200">{common('active')}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -614,7 +624,7 @@ export default function ProductsPage() {
                     onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
                     className="rounded"
                   />
-                  <Label htmlFor="is_featured" className="text-zinc-200">Featured</Label>
+                  <Label htmlFor="is_featured" className="text-zinc-200">{t('featured')}</Label>
                 </div>
               </div>
 
@@ -628,11 +638,11 @@ export default function ProductsPage() {
                   }}
                   className="border-zinc-700 text-zinc-300"
                 >
-                  Cancel
+                  {common('cancel')}
                 </Button>
                 <Button type="submit" disabled={formLoading}>
                   {formLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {editingProduct ? 'Update' : 'Create'}
+                  {editingProduct ? common('update') : common('create')}
                 </Button>
               </div>
             </form>
@@ -646,7 +656,7 @@ export default function ProductsPage() {
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by name, SKU, or category..."
+          placeholder={t('searchPlaceholder')}
           className="border-zinc-700 bg-zinc-800 pl-9 text-white placeholder:text-zinc-500"
         />
       </div>
@@ -655,20 +665,20 @@ export default function ProductsPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-zinc-900">
-              <TableHead className="text-zinc-400">Image</TableHead>
-              <TableHead className="text-zinc-400">Name</TableHead>
-              <TableHead className="text-zinc-400">Category</TableHead>
-              <TableHead className="text-zinc-400">Price</TableHead>
-              <TableHead className="text-zinc-400">Stock</TableHead>
-              <TableHead className="text-zinc-400">Status</TableHead>
-              <TableHead className="text-zinc-400 text-right">Actions</TableHead>
+              <TableHead className="text-zinc-400">{common('image')}</TableHead>
+              <TableHead className="text-zinc-400">{common('name')}</TableHead>
+              <TableHead className="text-zinc-400">{common('category')}</TableHead>
+              <TableHead className="text-zinc-400">{common('price')}</TableHead>
+              <TableHead className="text-zinc-400">{common('stock')}</TableHead>
+              <TableHead className="text-zinc-400">{common('status')}</TableHead>
+              <TableHead className="text-zinc-400 text-right">{common('actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-zinc-400">
-                  {normalizedSearch ? `No products match "${searchQuery.trim()}"` : 'No products found'}
+                  {normalizedSearch ? t('noMatches', { query: searchQuery.trim() }) : t('noProducts')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -696,7 +706,9 @@ export default function ProductsPage() {
                       <p className="text-xs text-zinc-400">{product.name_ka}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="text-zinc-300">{product.category?.name_en}</TableCell>
+                  <TableCell className="text-zinc-300">
+                    {product.category ? (locale === 'ka' ? product.category.name_ka : product.category.name_en) : '-'}
+                  </TableCell>
                   <TableCell>
                     <div>
                       {product.sale_price ? (
@@ -719,11 +731,11 @@ export default function ProductsPage() {
                             : 'bg-red-500/20 text-red-400'
                         }`}
                       >
-                        {product.is_active ? 'Active' : 'Inactive'}
+                        {product.is_active ? common('active') : common('inactive')}
                       </span>
                       {product.is_featured && (
                         <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">
-                          Featured
+                          {t('featured')}
                         </span>
                       )}
                     </div>
@@ -735,7 +747,7 @@ export default function ProductsPage() {
                         size="icon"
                         onClick={() => openEditDialog(product)}
                         className="text-zinc-400 hover:text-white"
-                        aria-label={`Edit ${product.name_en}`}
+                        aria-label={t('editLabel', { name: product.name_en })}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -744,7 +756,7 @@ export default function ProductsPage() {
                         size="icon"
                         onClick={() => setDeleteTarget(product)}
                         className="text-zinc-400 hover:text-red-400"
-                        aria-label={`Delete ${product.name_en}`}
+                        aria-label={t('deleteLabel', { name: product.name_en })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -762,8 +774,8 @@ export default function ProductsPage() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-        title="Delete product?"
-        description={`"${deleteTarget?.name_en ?? ''}" and its images will be permanently removed.`}
+        title={confirm('deleteProductTitle')}
+        description={confirm('deleteProductDescription', { name: deleteTarget?.name_en ?? '' })}
         loading={deleting}
         onConfirm={handleDelete}
       />

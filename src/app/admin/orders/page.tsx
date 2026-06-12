@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner'
 import { Eye, Package } from 'lucide-react'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
+import { useLocale, useTranslations } from 'next-intl'
 
 interface ShippingAddress {
   firstName: string
@@ -52,6 +53,11 @@ const statusColors: Record<string, string> = {
 }
 
 export default function OrdersPage() {
+  const t = useTranslations('admin.orders')
+  const common = useTranslations('admin.common')
+  const statusT = useTranslations('admin.status')
+  const toastText = useTranslations('admin.toast')
+  const locale = useLocale()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -62,12 +68,12 @@ export default function OrdersPage() {
       const data = await getOrdersAdmin()
       setOrders(data as Order[])
     } catch (error) {
-      toast.error('Failed to fetch orders')
+      toast.error(toastText('fetchOrdersFailed'))
       console.error(error)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [toastText])
 
   useEffect(() => {
     void Promise.resolve().then(fetchOrders)
@@ -82,10 +88,10 @@ export default function OrdersPage() {
 
     try {
       await updateOrderStatus(orderId, status)
-      toast.success('Order status updated')
+      toast.success(toastText('orderStatusUpdated'))
     } catch {
       setOrders(previousOrders)
-      toast.error('Failed to update status')
+      toast.error(toastText('updateStatusFailed'))
     }
   }
 
@@ -95,7 +101,7 @@ export default function OrdersPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -112,8 +118,8 @@ export default function OrdersPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Orders</h1>
-          <p className="text-zinc-400">Manage customer orders</p>
+          <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+          <p className="text-zinc-400">{t('subtitle')}</p>
         </div>
         <AdminTableSkeleton rows={6} />
       </div>
@@ -123,27 +129,27 @@ export default function OrdersPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Orders</h1>
-        <p className="text-zinc-400">Manage customer orders</p>
+        <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+        <p className="text-zinc-400">{t('subtitle')}</p>
       </div>
 
       {orders.length === 0 ? (
         <div className="text-center py-12 bg-zinc-900/50 rounded-lg">
           <Package className="h-12 w-12 mx-auto text-zinc-600 mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">No orders yet</h3>
-          <p className="text-zinc-400">Orders will appear here when customers place them</p>
+          <h3 className="text-lg font-medium text-white mb-2">{t('noOrders')}</h3>
+          <p className="text-zinc-400">{t('emptyCopy')}</p>
         </div>
       ) : (
         <div className="bg-zinc-900 rounded-lg border border-zinc-800">
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Order ID</TableHead>
-                <TableHead className="text-zinc-400">Customer</TableHead>
-                <TableHead className="text-zinc-400">Date</TableHead>
-                <TableHead className="text-zinc-400">Total</TableHead>
-                <TableHead className="text-zinc-400">Status</TableHead>
-                <TableHead className="text-zinc-400 text-right">Actions</TableHead>
+                <TableHead className="text-zinc-400">{t('orderId')}</TableHead>
+                <TableHead className="text-zinc-400">{common('customer')}</TableHead>
+                <TableHead className="text-zinc-400">{common('date')}</TableHead>
+                <TableHead className="text-zinc-400">{common('total')}</TableHead>
+                <TableHead className="text-zinc-400">{common('status')}</TableHead>
+                <TableHead className="text-zinc-400 text-right">{common('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -175,12 +181,12 @@ export default function OrdersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="border-zinc-700 bg-zinc-800 text-white">
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="processing">Processing</SelectItem>
-                        <SelectItem value="shipped">Shipped</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="pending">{statusT('pending')}</SelectItem>
+                        <SelectItem value="confirmed">{statusT('confirmed')}</SelectItem>
+                        <SelectItem value="processing">{statusT('processing')}</SelectItem>
+                        <SelectItem value="shipped">{statusT('shipped')}</SelectItem>
+                        <SelectItem value="delivered">{statusT('delivered')}</SelectItem>
+                        <SelectItem value="cancelled">{statusT('cancelled')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -189,7 +195,7 @@ export default function OrdersPage() {
                       variant="ghost"
                       size="icon"
                       className="text-zinc-400 hover:text-white"
-                      aria-label={`View order ${getOrderNumber(order.id)}`}
+                      aria-label={t('viewOrder', { id: getOrderNumber(order.id) })}
                       onClick={() => viewOrder(order)}
                     >
                       <Eye className="h-4 w-4" />
@@ -207,7 +213,7 @@ export default function OrdersPage() {
         <DialogContent className="max-w-2xl bg-zinc-900 border-zinc-800 text-white">
           <DialogHeader>
             <DialogTitle>
-              Order {selectedOrder && getOrderNumber(selectedOrder.id)}
+              {t('orderTitle', { id: selectedOrder ? getOrderNumber(selectedOrder.id) : '' })}
             </DialogTitle>
           </DialogHeader>
 
@@ -215,7 +221,7 @@ export default function OrdersPage() {
             <div className="space-y-6">
               {/* Customer Info */}
               <div>
-                <h4 className="text-sm font-medium text-zinc-400 mb-2">Customer</h4>
+                <h4 className="text-sm font-medium text-zinc-400 mb-2">{common('customer')}</h4>
                 <div className="bg-zinc-800 rounded-lg p-4">
                   <p className="text-white">
                     {selectedOrder.shipping_address?.firstName} {selectedOrder.shipping_address?.lastName}
@@ -227,7 +233,7 @@ export default function OrdersPage() {
 
               {/* Shipping Address */}
               <div>
-                <h4 className="text-sm font-medium text-zinc-400 mb-2">Shipping Address</h4>
+                <h4 className="text-sm font-medium text-zinc-400 mb-2">{t('shippingAddress')}</h4>
                 <div className="bg-zinc-800 rounded-lg p-4">
                   <p className="text-white">{selectedOrder.shipping_address?.address}</p>
                   <p className="text-zinc-400">
@@ -241,7 +247,7 @@ export default function OrdersPage() {
               {/* Notes */}
               {selectedOrder.notes && (
                 <div>
-                  <h4 className="text-sm font-medium text-zinc-400 mb-2">Notes</h4>
+                  <h4 className="text-sm font-medium text-zinc-400 mb-2">{t('notes')}</h4>
                   <div className="bg-zinc-800 rounded-lg p-4">
                     <p className="text-zinc-300">{selectedOrder.notes}</p>
                   </div>
@@ -250,19 +256,19 @@ export default function OrdersPage() {
 
               {/* Items */}
               <div>
-                <h4 className="text-sm font-medium text-zinc-400 mb-2">Items</h4>
+                <h4 className="text-sm font-medium text-zinc-400 mb-2">{t('items')}</h4>
                 <div className="bg-zinc-800 rounded-lg divide-y divide-zinc-700">
                   {selectedOrder.items?.map((item) => (
                     <div key={item.id} className="p-4 flex justify-between">
                       <div>
                         <p className="text-white">
-                          {item.product?.name_en || 'Product'}
+                          {item.product ? (locale === 'ka' ? item.product.name_ka : item.product.name_en) : common('product')}
                           {item.variant?.name_en && (
-                            <span className="ml-2 text-sm text-zinc-400">({item.variant.name_en})</span>
+                            <span className="ml-2 text-sm text-zinc-400">({locale === 'ka' ? item.variant.name_ka : item.variant.name_en})</span>
                           )}
                         </p>
                         <p className="text-sm text-zinc-400">
-                          Qty: {item.quantity} × ₾{item.price}
+                          {t('qtyPrice', { quantity: item.quantity, price: item.price })}
                         </p>
                       </div>
                       <p className="text-white font-medium">
@@ -271,7 +277,7 @@ export default function OrdersPage() {
                     </div>
                   ))}
                   <div className="p-4 flex justify-between font-bold">
-                    <span>Total</span>
+                    <span>{common('total')}</span>
                     <span>₾{selectedOrder.total.toFixed(2)}</span>
                   </div>
                 </div>

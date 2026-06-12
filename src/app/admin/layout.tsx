@@ -5,7 +5,9 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { Button } from '@/components/ui/button'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { cn } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
 import {
   LayoutDashboard,
   Package,
@@ -22,14 +24,14 @@ import {
 import { useState } from 'react'
 
 const sidebarLinks = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/categories', label: 'Categories', icon: FolderTree },
-  { href: '/admin/products', label: 'Products', icon: Package },
-  { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
-  { href: '/admin/customers', label: 'Customers', icon: Users },
-  { href: '/admin/reviews', label: 'Reviews', icon: Star },
-  { href: '/admin/news', label: 'News', icon: Newspaper },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
+  { href: '/admin', labelKey: 'dashboard', icon: LayoutDashboard },
+  { href: '/admin/categories', labelKey: 'categories', icon: FolderTree },
+  { href: '/admin/products', labelKey: 'products', icon: Package },
+  { href: '/admin/orders', labelKey: 'orders', icon: ShoppingCart },
+  { href: '/admin/customers', labelKey: 'customers', icon: Users },
+  { href: '/admin/reviews', labelKey: 'reviews', icon: Star },
+  { href: '/admin/news', labelKey: 'news', icon: Newspaper },
+  { href: '/admin/settings', labelKey: 'settings', icon: Settings },
 ]
 
 export default function AdminLayout({
@@ -39,6 +41,7 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useTranslations('admin.layout')
   const supabase = hasSupabaseConfig ? createClient() : null
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -57,12 +60,12 @@ export default function AdminLayout({
       {/* Mobile header */}
       <div className="flex items-center justify-between border-b border-white/10 bg-zinc-950/88 p-4 backdrop-blur-xl lg:hidden">
         <Link href="/admin" className="text-xl font-bold tracking-tight">
-          BEPA Admin
+          {t('brand')}
         </Link>
         <Button
           variant="ghost"
           size="icon"
-          aria-label={sidebarOpen ? 'Close admin navigation' : 'Open admin navigation'}
+          aria-label={sidebarOpen ? t('closeNav') : t('openNav')}
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           {sidebarOpen ? <X /> : <Menu />}
@@ -81,9 +84,9 @@ export default function AdminLayout({
           <div className="flex flex-col h-full">
             <div className="border-b border-white/10 p-6">
               <Link href="/admin" className="block text-xl font-bold tracking-tight">
-                BEPA Admin
+                {t('brand')}
               </Link>
-              <p className="mt-1 text-xs text-zinc-500">Operations console</p>
+              <p className="mt-1 text-xs text-zinc-500">{t('subtitle')}</p>
             </div>
 
             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -105,27 +108,30 @@ export default function AdminLayout({
                     )}
                   >
                     <Icon className="h-5 w-5" />
-                    {link.label}
+                    {t(`nav.${link.labelKey}`)}
                   </Link>
                 )
               })}
             </nav>
 
             <div className="border-t border-white/10 p-4">
+              <div className="mb-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1">
+                <LanguageSwitcher />
+              </div>
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 text-zinc-400 hover:bg-white/10 hover:text-white"
                 onClick={handleLogout}
               >
                 <LogOut className="h-5 w-5" />
-                Logout
+                {t('logout')}
               </Button>
               <Link href="/" className="block mt-2">
                 <Button
                   variant="outline"
                   className="w-full border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
                 >
-                  View Store
+                  {t('viewStore')}
                 </Button>
               </Link>
             </div>

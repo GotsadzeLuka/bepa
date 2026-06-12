@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useTranslations } from 'next-intl'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -26,10 +27,13 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Delete',
+  confirmLabel,
   loading = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const t = useTranslations('admin.common')
+  const actionLabel = confirmLabel ?? t('delete')
+
   return (
     <Dialog
       open={open}
@@ -53,11 +57,11 @@ export function ConfirmDialog({
             disabled={loading}
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {t('cancel')}
           </Button>
           <Button type="button" variant="destructive" disabled={loading} onClick={onConfirm}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {confirmLabel}
+            {actionLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

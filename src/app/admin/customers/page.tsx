@@ -14,10 +14,15 @@ import {
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLocale, useTranslations } from 'next-intl'
 
 type Customer = Awaited<ReturnType<typeof getCustomersAdmin>>[number]
 
 export default function CustomersPage() {
+  const t = useTranslations('admin.customers')
+  const common = useTranslations('admin.common')
+  const toastText = useTranslations('admin.toast')
+  const locale = useLocale()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -28,11 +33,11 @@ export default function CustomersPage() {
       setCustomers(data)
     } catch (error) {
       console.error(error)
-      toast.error('Failed to fetch customers')
+      toast.error(toastText('fetchCustomersFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [toastText])
 
   useEffect(() => {
     fetchCustomers()
@@ -52,8 +57,8 @@ export default function CustomersPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Customers</h1>
-          <p className="text-zinc-400">Review registered profiles and admin access.</p>
+          <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+          <p className="text-zinc-400">{t('subtitle')}</p>
         </div>
         <AdminTableSkeleton rows={5} />
       </div>
@@ -63,8 +68,8 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">Customers</h1>
-        <p className="text-zinc-400">Review registered profiles and admin access.</p>
+        <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+        <p className="text-zinc-400">{t('subtitle')}</p>
       </div>
 
       <div className="relative max-w-sm">
@@ -73,7 +78,7 @@ export default function CustomersPage() {
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by email, name, or phone..."
+          placeholder={t('searchPlaceholder')}
           className="border-zinc-700 bg-zinc-800 pl-9 text-white placeholder:text-zinc-500"
         />
       </div>
@@ -81,26 +86,26 @@ export default function CustomersPage() {
       {customers.length === 0 ? (
         <div className="rounded-lg bg-zinc-900/50 py-12 text-center">
           <Users className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-          <h3 className="mb-2 text-lg font-medium text-white">No customers yet</h3>
-          <p className="text-zinc-400">Profiles will appear here after users sign up.</p>
+          <h3 className="mb-2 text-lg font-medium text-white">{t('noCustomers')}</h3>
+          <p className="text-zinc-400">{t('emptyCopy')}</p>
         </div>
       ) : (
         <div className="rounded-lg border border-zinc-800 bg-zinc-900">
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Email</TableHead>
-                <TableHead className="text-zinc-400">Name</TableHead>
-                <TableHead className="text-zinc-400">Phone</TableHead>
-                <TableHead className="text-zinc-400">Role</TableHead>
-                <TableHead className="text-zinc-400">Created</TableHead>
+                <TableHead className="text-zinc-400">{common('email')}</TableHead>
+                <TableHead className="text-zinc-400">{common('name')}</TableHead>
+                <TableHead className="text-zinc-400">{common('phone')}</TableHead>
+                <TableHead className="text-zinc-400">{common('role')}</TableHead>
+                <TableHead className="text-zinc-400">{common('created')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visibleCustomers.length === 0 ? (
                 <TableRow className="border-zinc-800 hover:bg-transparent">
                   <TableCell colSpan={5} className="py-8 text-center text-zinc-400">
-                    No customers match &quot;{searchQuery.trim()}&quot;
+                    {t('noMatches', { query: searchQuery.trim() })}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -121,7 +126,7 @@ export default function CustomersPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-zinc-300">
-                      {new Date(customer.created_at).toLocaleDateString()}
+                      {new Date(customer.created_at).toLocaleDateString(locale)}
                     </TableCell>
                   </TableRow>
                 ))

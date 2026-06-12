@@ -1,11 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { Database, UserRole } from '@/types/database'
 import { getSupabaseClientEnv, hasSupabaseConfig } from '@/lib/supabase/config'
 
 const PUBLIC_ROUTE_CACHE_SECONDS = 300
 const PUBLIC_ROUTE_STALE_SECONDS = 86400
+const ADMIN_ROLE_CACHE_SECONDS = 60
 const publicCacheableRoutes = ['/', '/products', '/product', '/news', '/contact']
 const privateRoutePrefixes = ['/admin', '/account', '/wishlist', '/cart', '/checkout', '/login', '/register', '/auth']
+const adminRoleCache = new Map<string, { role: UserRole | null; expiresAt: number }>()
 
 // Routes whose middleware behavior depends on auth state. Everything else
 // skips the Supabase session lookup entirely, so public route hits stay
@@ -124,6 +128,29 @@ function hasGoogleAuthProvider(user: { app_metadata?: Record<string, unknown> } 
   )
 }
 
+async function getCachedProfileRole(supabase: SupabaseClient<Database>, userId: string) {
+  const now = Date.now()
+  const cached = adminRoleCache.get(userId)
+
+  if (cached && cached.expiresAt > now) {
+    return cached.role
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  const role = profile?.role ?? null
+  adminRoleCache.set(userId, {
+    role,
+    expiresAt: now + ADMIN_ROLE_CACHE_SECONDS * 1000,
+  })
+
+  return role
+}
+
 function adminLoginRedirect(request: NextRequest, message?: string) {
   const redirectUrl = new URL('/admin/login', request.url)
   if (message) {
@@ -167,7 +194,7 @@ export async function proxy(request: NextRequest) {
 
   const { supabaseUrl, supabasePublishableKey } = getSupabaseClientEnv()
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     supabaseUrl,
     supabasePublishableKey,
     {
@@ -203,14 +230,9 @@ export async function proxy(request: NextRequest) {
     // Allow access to admin login page
     if (pathname === '/admin/login') {
       if (user && hasGoogleAuthProvider(user)) {
-        // Check if user is admin
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
+        const role = await getCachedProfileRole(supabase, user.id)
 
-        if (profile?.role === 'admin') {
+        if (role === 'admin') {
           return withRouteHeaders(request, NextResponse.redirect(new URL('/admin', request.url)))
         }
       }
@@ -226,14 +248,9 @@ export async function proxy(request: NextRequest) {
       return withRouteHeaders(request, adminLoginRedirect(request, 'Admin access requires Google OAuth.'))
     }
 
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const role = await getCachedProfileRole(supabase, user.id)
 
-    if (profile?.role !== 'admin') {
+    if (role !== 'admin') {
       return withRouteHeaders(request, NextResponse.redirect(new URL('/', request.url)))
     }
   }
@@ -251,13 +268,9 @@ export async function proxy(request: NextRequest) {
   // Redirect logged in users from auth pages
   if (pathname === '/login' || pathname === '/register') {
     if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+      const role = await getCachedProfileRole(supabase, user.id)
 
-      if (profile?.role === 'admin') {
+      if (role === 'admin') {
         return withRouteHeaders(request, NextResponse.redirect(new URL('/admin', request.url)))
       }
       return withRouteHeaders(request, NextResponse.redirect(new URL('/', request.url)))

@@ -24,6 +24,8 @@ export function LanguageSwitcher() {
   const [pending, startTransition] = useTransition()
 
   const handleLanguageChange = (langCode: string) => {
+    if (langCode === locale) return
+
     startTransition(async () => {
       await setLocaleCookie(langCode)
       router.refresh()
