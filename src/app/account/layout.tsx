@@ -8,14 +8,9 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { hasSupabaseConfig } from '@/lib/supabase/config'
+import { isAccountNavItemActive } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
-
-const accountLinks = [
-  { href: '/account', label: 'Profile', icon: User },
-  { href: '/account/orders', label: 'My Orders', icon: Package },
-  { href: '/wishlist', label: 'Wishlist', icon: Heart },
-  { href: '/account/settings', label: 'Settings', icon: Settings },
-]
+import { useTranslations } from 'next-intl'
 
 export default function AccountLayout({
   children,
@@ -24,6 +19,8 @@ export default function AccountLayout({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const common = useTranslations('common')
+  const account = useTranslations('account')
   const supabase = useMemo(() => hasSupabaseConfig ? createClient() : null, [])
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,6 +53,13 @@ export default function AccountLayout({
     router.push('/')
     router.refresh()
   }
+
+  const accountLinks = [
+    { href: '/account', label: common('account'), icon: User },
+    { href: '/account/orders', label: common('myOrders'), icon: Package },
+    { href: '/wishlist', label: common('wishlist'), icon: Heart },
+    { href: '/account/settings', label: account('settings'), icon: Settings },
+  ]
 
   if (loading) {
     return (
@@ -99,7 +103,7 @@ export default function AccountLayout({
             <nav className="space-y-1">
               {accountLinks.map((link) => {
                 const Icon = link.icon
-                const isActive = pathname === link.href
+                const isActive = isAccountNavItemActive(link.href, pathname)
 
                 return (
                   <Link
@@ -111,6 +115,7 @@ export default function AccountLayout({
                         ? 'bg-slate-950 text-white shadow-sm'
                         : 'text-slate-600 hover:bg-white hover:text-slate-950'
                     )}
+                    aria-current={isActive ? 'page' : undefined}
                   >
                     <Icon className="h-4 w-4" />
                     {link.label}

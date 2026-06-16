@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowUpRight, Facebook, Instagram, Mail, MapPin, Phone } from 'lucide-react'
 import { getCategoryName, type StoreCategory } from '@/lib/catalog'
+import { ACCOUNT_NAV_ITEMS, FOOTER_NAV_ITEMS } from '@/lib/navigation'
 
 interface FooterProps {
   categories: StoreCategory[]
@@ -13,21 +14,6 @@ export function Footer({ categories }: FooterProps) {
   const locale = useLocale()
   const t = useTranslations('footer')
   const tc = useTranslations('common')
-
-  const quickLinks = [
-    { href: '/', label: tc('home') },
-    { href: '/products', label: tc('products') },
-    { href: '/products?sale=true', label: tc('sale') },
-    { href: '/news', label: tc('news') },
-    { href: '/contact', label: tc('contact') },
-  ]
-
-  const accountLinks = [
-    { href: '/account', label: tc('account') },
-    { href: '/account/orders', label: tc('myOrders') },
-    { href: '/wishlist', label: tc('wishlist') },
-    { href: '/cart', label: tc('cart') },
-  ]
 
   return (
     <footer className="mt-auto bg-slate-950 text-slate-300">
@@ -84,10 +70,10 @@ export function Footer({ categories }: FooterProps) {
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-white">{t('quickLinks')}</h3>
             <ul className="mt-4 space-y-3 text-sm">
-              {quickLinks.map((link) => (
+              {FOOTER_NAV_ITEMS.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="transition-colors hover:text-white">
-                    {link.label}
+                    {tc(link.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -110,10 +96,10 @@ export function Footer({ categories }: FooterProps) {
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-white">{tc('account')}</h3>
             <ul className="mt-4 space-y-3 text-sm">
-              {accountLinks.map((link) => (
+              {ACCOUNT_NAV_ITEMS.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="transition-colors hover:text-white">
-                    {link.label}
+                    {tc(link.labelKey)}
                   </Link>
                 </li>
               ))}
