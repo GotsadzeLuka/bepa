@@ -105,6 +105,16 @@ function ServiceHighlightGrid({ highlights }: { highlights: ServiceHighlight[] }
   )
 }
 
+function ServicePromiseSection({ highlights }: { highlights: ServiceHighlight[] }) {
+  if (highlights.length === 0) return null
+
+  return (
+    <section className="container pb-12 sm:pb-16">
+      <ServiceHighlightGrid highlights={highlights} />
+    </section>
+  )
+}
+
 function HeroProductLink({
   product,
   media,
@@ -362,10 +372,6 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
-
-          <div className="mt-7">
-            <ServiceHighlightGrid highlights={serviceHighlights} />
-          </div>
         </div>
       </section>
 
@@ -375,6 +381,8 @@ export default async function HomePage() {
         copy={t('browseCategoriesCopy')}
         actionLabel={tc('viewAll')}
       />
+
+      <ServicePromiseSection highlights={serviceHighlights} />
 
       <ProductShelf
         title={t('featuredProducts')}

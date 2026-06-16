@@ -16,61 +16,53 @@ import { SafeImage } from '@/components/ui/SafeImage'
 
 type ArtworkTheme = {
   chip: string
-  glow: string
   gradient: string
   icon: LucideIcon
-  ring: string
+  surface: string
 }
 
 const themes: Record<string, ArtworkTheme> = {
   lighting: {
-    chip: 'border-white/20 bg-white/10 text-amber-50',
-    glow: 'bg-amber-300/35',
-    gradient: 'from-slate-950 via-slate-900 to-amber-700',
+    chip: 'border-amber-200 bg-amber-50 text-amber-700',
+    gradient: 'from-amber-50 via-white to-slate-100',
     icon: Zap,
-    ring: 'from-amber-300/30 via-transparent to-transparent',
+    surface: 'bg-amber-50/70',
   },
   batteries: {
-    chip: 'border-white/20 bg-white/10 text-emerald-50',
-    glow: 'bg-emerald-300/30',
-    gradient: 'from-slate-950 via-emerald-950 to-emerald-700',
+    chip: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    gradient: 'from-emerald-50 via-white to-slate-100',
     icon: BatteryCharging,
-    ring: 'from-emerald-300/25 via-transparent to-transparent',
+    surface: 'bg-emerald-50/70',
   },
   brakes: {
-    chip: 'border-white/20 bg-white/10 text-rose-50',
-    glow: 'bg-rose-300/35',
-    gradient: 'from-slate-950 via-rose-950 to-red-700',
+    chip: 'border-rose-200 bg-rose-50 text-rose-700',
+    gradient: 'from-rose-50 via-white to-slate-100',
     icon: Disc3,
-    ring: 'from-rose-300/30 via-transparent to-transparent',
+    surface: 'bg-rose-50/70',
   },
   filters: {
-    chip: 'border-white/20 bg-white/10 text-sky-50',
-    glow: 'bg-sky-300/30',
-    gradient: 'from-slate-950 via-cyan-950 to-sky-700',
+    chip: 'border-sky-200 bg-sky-50 text-sky-700',
+    gradient: 'from-sky-50 via-white to-slate-100',
     icon: Wind,
-    ring: 'from-sky-300/30 via-transparent to-transparent',
+    surface: 'bg-sky-50/70',
   },
   'oils-fluids': {
-    chip: 'border-white/20 bg-white/10 text-orange-50',
-    glow: 'bg-orange-300/30',
-    gradient: 'from-slate-950 via-orange-950 to-amber-700',
+    chip: 'border-orange-200 bg-orange-50 text-orange-700',
+    gradient: 'from-orange-50 via-white to-slate-100',
     icon: Droplets,
-    ring: 'from-orange-300/30 via-transparent to-transparent',
+    surface: 'bg-orange-50/70',
   },
   accessories: {
-    chip: 'border-white/20 bg-white/10 text-indigo-50',
-    glow: 'bg-indigo-300/30',
-    gradient: 'from-slate-950 via-indigo-950 to-indigo-700',
+    chip: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+    gradient: 'from-indigo-50 via-white to-slate-100',
     icon: Gauge,
-    ring: 'from-indigo-300/30 via-transparent to-transparent',
+    surface: 'bg-indigo-50/70',
   },
   default: {
-    chip: 'border-white/20 bg-white/10 text-white',
-    glow: 'bg-white/20',
-    gradient: 'from-slate-950 via-slate-900 to-slate-700',
+    chip: 'border-slate-200 bg-white text-slate-700',
+    gradient: 'from-slate-50 via-white to-slate-100',
     icon: ShieldCheck,
-    ring: 'from-white/20 via-transparent to-transparent',
+    surface: 'bg-slate-50',
   },
 }
 
@@ -103,45 +95,44 @@ export function ProductArtwork({
   const mediaPosition = objectPosition ?? fallbackMedia.objectPosition ?? 'center'
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden">
-        {mediaSrc ? (
-          <SafeImage
-            src={mediaSrc}
-            alt={mediaAlt}
-            fill
-            className="animate-pan object-cover"
-            style={{ objectPosition: mediaPosition }}
-            sizes={compact ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 1024px) 100vw, 60vw'}
-          />
-        ) : (
-          <div className={cn('h-full w-full bg-gradient-to-br', theme.gradient)} />
-        )}
-      </div>
-      <div className={cn('absolute inset-0 bg-gradient-to-br mix-blend-multiply', theme.gradient)} />
-      <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(15,23,42,0.08),rgba(15,23,42,0.84)),radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.24),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(255,255,255,0.14),transparent_34%)]" />
-      <div className={cn('absolute -left-14 top-6 h-32 w-32 rounded-full blur-3xl', theme.glow)} />
-      <div className="absolute -right-16 bottom-0 h-44 w-44 rounded-full border border-white/12 bg-white/6 backdrop-blur-md" />
-      <div className={cn('absolute inset-0 bg-gradient-to-tr opacity-80', theme.ring)} />
-      <div className="absolute inset-x-5 top-5 flex items-center justify-between">
-        <span className={cn('rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] backdrop-blur-md', theme.chip)}>
+    <div className={cn('relative flex h-full w-full flex-col overflow-hidden bg-gradient-to-br', theme.gradient)}>
+      <div className="flex items-center justify-between gap-3 px-5 pt-5">
+        <span className={cn('rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em]', theme.chip)}>
           {category}
         </span>
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/14 bg-white/10 text-white shadow-lg backdrop-blur-md">
+        <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl border border-white bg-white/82 text-slate-950 shadow-sm', theme.surface)}>
           <Icon className={compact ? 'h-5 w-5' : 'h-6 w-6'} />
         </div>
       </div>
-      <div className="absolute inset-x-5 bottom-5">
-        <div className="rounded-[1.75rem] border border-white/12 bg-black/18 p-4 shadow-2xl backdrop-blur-md">
-          <p className={cn('max-w-[15rem] font-black tracking-tight text-white text-balance', compact ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl')}>
-            {title}
-          </p>
-          {subtitle && (
-            <p className={cn('mt-2 max-w-[22rem] text-white/74', compact ? 'text-xs leading-5' : 'text-sm leading-6')}>
-              {subtitle}
-            </p>
+
+      <div className="relative min-h-0 flex-1 px-5 py-4">
+        <div className="relative h-full min-h-[9rem] overflow-hidden rounded-[1.6rem] border border-white/80 bg-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_22px_70px_-48px_rgba(15,23,42,0.5)]">
+          {mediaSrc ? (
+            <SafeImage
+              src={mediaSrc}
+              alt={mediaAlt}
+              fill
+              className="object-contain p-5 transition-transform duration-500 group-hover:scale-[1.03]"
+              style={{ objectPosition: mediaPosition }}
+              sizes={compact ? '(max-width: 768px) 100vw, 34vw' : '(max-width: 1024px) 100vw, 52vw'}
+            />
+          ) : (
+            <div className={cn('flex h-full w-full items-center justify-center', theme.surface)}>
+              <Icon className="h-16 w-16 text-slate-300" />
+            </div>
           )}
         </div>
+      </div>
+
+      <div className="border-t border-white/80 bg-white/86 p-5 backdrop-blur">
+        <p className={cn('font-black tracking-tight text-slate-950 text-balance', compact ? 'text-xl' : 'text-2xl sm:text-3xl')}>
+          {title}
+        </p>
+        {subtitle && (
+          <p className={cn('mt-2 max-w-[34rem] text-slate-600', compact ? 'line-clamp-2 text-xs leading-5' : 'line-clamp-2 text-sm leading-6')}>
+            {subtitle}
+          </p>
+        )}
       </div>
     </div>
   )
