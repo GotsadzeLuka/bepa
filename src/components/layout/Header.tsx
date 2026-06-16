@@ -21,10 +21,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { StorefrontSearch } from './StorefrontSearch'
 import { createClient } from '@/lib/supabase/client'
 import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { getCategoryName, type StoreCategory } from '@/lib/catalog'
@@ -51,7 +51,6 @@ export function Header({ categories }: HeaderProps) {
   const searchParams = useSearchParams()
   const hasHydrated = useCartStore((state) => state.hasHydrated)
   const itemCount = useCartStore((state) => state.getItemCount())
-  const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
   const navCategories = categories.slice(0, 6)
@@ -79,16 +78,6 @@ export function Header({ categories }: HeaderProps) {
 
     return () => subscription.unsubscribe()
   }, [supabase])
-
-  const handleSearch = (event: React.FormEvent) => {
-    event.preventDefault()
-
-    if (!searchQuery.trim()) return
-
-    router.push(`/products?search=${encodeURIComponent(searchQuery)}`)
-    setSearchQuery('')
-    setSearchOpen(false)
-  }
 
   const handleLogout = async () => {
     if (!supabase) return
@@ -229,18 +218,9 @@ export function Header({ categories }: HeaderProps) {
             </Link>
           </div>
 
-          <form onSubmit={handleSearch} className="hidden flex-1 lg:flex">
-            <div className="relative mx-auto w-full max-w-xl">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                type="search"
-                placeholder={t('searchPlaceholder')}
-                className="h-12 rounded-full border-white/70 bg-white/88 pl-11 pr-4 shadow-sm"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
-            </div>
-          </form>
+          <div className="hidden flex-1 lg:flex">
+            <StorefrontSearch className="mx-auto max-w-xl" />
+          </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
             <Button
@@ -310,19 +290,13 @@ export function Header({ categories }: HeaderProps) {
 
         {searchOpen && (
           <div className="animate-fade-up pb-4 lg:hidden">
-            <form onSubmit={handleSearch}>
-              <div className="relative rounded-[1.5rem] border border-white/70 bg-white/78 p-2 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur-xl">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  type="search"
-                  placeholder={t('searchPlaceholder')}
-                  className="h-11 rounded-full border-transparent bg-white pl-11 pr-4 shadow-none"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  autoFocus
-                />
-              </div>
-            </form>
+            <div className="rounded-[1.5rem] border border-white/70 bg-white/78 p-2 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+              <StorefrontSearch
+                autoFocus
+                variant="mobile"
+                onNavigate={() => setSearchOpen(false)}
+              />
+            </div>
           </div>
         )}
       </div>

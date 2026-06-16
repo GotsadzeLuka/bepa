@@ -101,10 +101,15 @@ export function ProductFilters({ categories }: ProductFiltersProps) {
 
   const filterContent = (
     <div className="space-y-6" aria-busy={isPending}>
-      <div className="h-1 overflow-hidden rounded-full bg-slate-200/80">
-        <div
-          className={`h-full rounded-full bg-primary transition-all duration-300 ${isPending ? 'w-full opacity-100' : 'w-0 opacity-0'}`}
-        />
+      <div className="space-y-2" aria-live="polite">
+        <p className={isPending ? 'text-xs font-semibold text-slate-600' : 'sr-only'}>
+          {isPending ? t('updatingResults') : ''}
+        </p>
+        <div className="h-1 overflow-hidden rounded-full bg-slate-200/80">
+          <div
+            className={`h-full rounded-full bg-primary transition-all duration-300 ${isPending ? 'w-full opacity-100' : 'w-0 opacity-0'}`}
+          />
+        </div>
       </div>
 
       {activeFilters.length > 0 && (
