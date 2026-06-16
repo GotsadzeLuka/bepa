@@ -13,18 +13,15 @@ import {
   Wind,
   Zap,
 } from 'lucide-react'
-import { ProductArtwork } from '@/components/product/ProductArtwork'
 import { ProductCard } from '@/components/product/ProductCard'
 import { Button } from '@/components/ui/button'
 import { SafeImage } from '@/components/ui/SafeImage'
 import {
   getCategoryName,
-  getProductDescription,
-  getProductName,
   type StoreCategory,
   type StoreProduct,
 } from '@/lib/catalog'
-import { getCategoryMedia, getProductMedia } from '@/lib/storefront-media'
+import { getCategoryMedia } from '@/lib/storefront-media'
 import { storefrontService } from '@/lib/storefront'
 
 const categoryIcons: Record<string, LucideIcon> = {
@@ -50,8 +47,6 @@ type ServiceHighlight = {
   title: string
   desc: string
 }
-
-type ProductMedia = ReturnType<typeof getProductMedia>
 
 export const revalidate = 300
 
@@ -112,38 +107,6 @@ function ServicePromiseSection({ highlights }: { highlights: ServiceHighlight[] 
     <section className="container pb-12 sm:pb-16">
       <ServiceHighlightGrid highlights={highlights} />
     </section>
-  )
-}
-
-function HeroProductLink({
-  product,
-  media,
-  locale,
-  compact = false,
-}: {
-  product: StoreProduct
-  media: ProductMedia
-  locale: string
-  compact?: boolean
-}) {
-  return (
-    <Link
-      href={`/product/${product.slug}`}
-      className="group block overflow-hidden rounded-[2rem] border border-white/65 shadow-[0_30px_90px_-54px_rgba(15,23,42,0.56)] transition-transform duration-300 hover:-translate-y-1"
-    >
-      <div className={compact ? 'relative h-[18rem]' : 'relative h-[22rem] sm:h-[28rem]'}>
-        <ProductArtwork
-          compact={compact}
-          title={getProductName(product, locale)}
-          category={getCategoryName(product.category, locale) || 'BEPA'}
-          subtitle={getProductDescription(product, locale)}
-          tone={product.category?.slug}
-          imageSrc={media.src}
-          imageAlt={media.alt}
-          objectPosition={media.objectPosition}
-        />
-      </div>
-    </Link>
   )
 }
 
@@ -301,15 +264,8 @@ export default async function HomePage() {
 
   const { categories, featuredProducts, saleProducts, latestProducts } = await storefrontService.getHomePageData()
 
-  const showcasePrimary = featuredProducts[0] ?? latestProducts[0]
-  const showcaseSecondary = featuredProducts[1] ?? saleProducts[0] ?? latestProducts[1]
-  const showcasePrimaryMedia = showcasePrimary ? getProductMedia(showcasePrimary) : null
-  const showcaseSecondaryMedia = showcaseSecondary ? getProductMedia(showcaseSecondary) : null
   const categorySummaries = buildCategorySummaries(categories, locale)
   const usedProductIds = new Set<string>()
-
-  if (showcasePrimary) usedProductIds.add(showcasePrimary.id)
-  if (showcaseSecondary) usedProductIds.add(showcaseSecondary.id)
 
   const featuredGrid = takeUniqueProducts(featuredProducts, usedProductIds, 4)
   const saleGrid = takeUniqueProducts(saleProducts, usedProductIds, 4)
@@ -329,47 +285,32 @@ export default async function HomePage() {
         <div className="absolute left-[-12rem] top-24 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute right-[-10rem] top-40 h-72 w-72 rounded-full bg-slate-900/8 blur-3xl" />
 
-        <div className="container relative py-10 sm:py-14 lg:py-18">
-          <div className="grid gap-7 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] xl:items-center">
-            <div className="animate-fade-up space-y-7">
-              <div className="space-y-5">
-                <p className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
-                  {t('heroKicker')}
+        <div className="container relative py-10 sm:py-14 lg:py-16">
+          <div className="animate-fade-up max-w-4xl space-y-7">
+            <div className="space-y-5">
+              <p className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
+                {t('heroKicker')}
+              </p>
+              <div className="space-y-4">
+                <h1 className="max-w-3xl font-display text-4xl font-black tracking-tight text-slate-950 text-balance sm:text-5xl lg:text-6xl">
+                  {t('heroTitle')}
+                </h1>
+                <p className="max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
+                  {t('heroSubtitle')}
                 </p>
-                <div className="space-y-4">
-                  <h1 className="max-w-3xl font-display text-4xl font-black tracking-tight text-slate-950 text-balance sm:text-5xl lg:text-6xl">
-                    {t('heroTitle')}
-                  </h1>
-                  <p className="max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-                    {t('heroSubtitle')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild size="lg" className="w-full rounded-full px-7 sm:w-auto">
-                  <Link href="/products">
-                    {t('shopNow')}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="w-full rounded-full border-white/80 bg-white/82 px-7 sm:w-auto">
-                  <Link href="/products?featured=true">{tc('viewAll')}</Link>
-                </Button>
               </div>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,0.72fr)]">
-              <div className="animate-fade-up" style={{ animationDelay: '120ms' }}>
-                {showcasePrimary && showcasePrimaryMedia && (
-                  <HeroProductLink product={showcasePrimary} media={showcasePrimaryMedia} locale={locale} />
-                )}
-              </div>
-              <div className="animate-fade-up" style={{ animationDelay: '200ms' }}>
-                {showcaseSecondary && showcaseSecondaryMedia && (
-                  <HeroProductLink product={showcaseSecondary} media={showcaseSecondaryMedia} locale={locale} compact />
-                )}
-              </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="w-full rounded-full px-7 sm:w-auto">
+                <Link href="/products">
+                  {t('shopNow')}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="w-full rounded-full border-white/80 bg-white/82 px-7 sm:w-auto">
+                <Link href="/products?featured=true">{tc('viewAll')}</Link>
+              </Button>
             </div>
           </div>
         </div>
