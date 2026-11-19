@@ -19,6 +19,7 @@
     "test": "tsx --test tests/*.test.ts",
     "test:integration": "tsx --test tests/integration/*.test.ts",
     "db:constraints": "tsx scripts/db-constraints.ts",
+    "db:rls:bootstrap": "tsx scripts/bootstrap-rls-test.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run security:check && npm test && npm run build && npm run typecheck",
     "db:permissions": "tsx scripts/check-db-permissions.ts"

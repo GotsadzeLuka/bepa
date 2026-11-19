@@ -40,7 +40,9 @@ jobs:
         run: npx prisma db push
       - name: Apply database invariants
         run: npm run db:constraints
-      - name: Execute real PostgreSQL concurrency and rollback tests
+      - name: Bootstrap isolated Supabase-like roles and row policies
+        run: npm run db:rls:bootstrap
+      - name: Execute real PostgreSQL concurrency, rollback, and RLS tests
         run: npm run test:integration
   quality:
     runs-on: ubuntu-latest
