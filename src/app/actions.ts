@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { calculateOrderTotal } from '@/lib/money'
 import { isSameCheckoutRequest } from '@/lib/checkout-idempotency'
+import { reserveInventory } from '@/lib/inventory'
 import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
 import { revalidateAdminCache, revalidateProductCache } from '@/lib/cache'
@@ -332,40 +333,9 @@ export async function createOrder(data: {
       })
   
       for (const item of pricedItems) {
-        if (item.variantId) {
-          const updatedVariant = await tx.productVariant.updateMany({
-            where: {
-              id: item.variantId,
-              productId: item.productId,
-              isActive: true,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          })
-  
-          if (updatedVariant.count !== 1) {
-            throw new Error('One or more products do not have enough stock.')
-          }
-        } else {
-          const updatedProduct = await tx.product.updateMany({
-            where: {
-              id: item.productId,
-              isActive: true,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          })
-  
-          if (updatedProduct.count !== 1) {
-            throw new Error('One or more products do not have enough stock.')
-          }
-        }
+        await reserveInventory(tx, item)
       }
-  
+
       return { id: order.id }
     })
   } catch (error) {
