@@ -28,6 +28,7 @@ import { toast } from 'sonner'
 import { Eye, MapPin, Package } from 'lucide-react'
 import { AdminTableSkeleton } from '@/components/admin/TableSkeleton'
 import { isGoogleMapsUrl } from '@/lib/location'
+import { getAllowedOrderStatuses } from '@/lib/order-status'
 import { useLocale, useTranslations } from 'next-intl'
 
 interface ShippingAddress {
@@ -176,6 +177,7 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>
                     <Select
+                      disabled={getAllowedOrderStatuses(order.status).length === 0}
                       value={order.status}
                       onValueChange={(value) => updateStatus(order.id, value as Order['status'])}
                     >
@@ -183,12 +185,9 @@ export default function OrdersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="border-zinc-700 bg-zinc-800 text-white">
-                        <SelectItem value="pending">{statusT('pending')}</SelectItem>
-                        <SelectItem value="confirmed">{statusT('confirmed')}</SelectItem>
-                        <SelectItem value="processing">{statusT('processing')}</SelectItem>
-                        <SelectItem value="shipped">{statusT('shipped')}</SelectItem>
-                        <SelectItem value="delivered">{statusT('delivered')}</SelectItem>
-                        <SelectItem value="cancelled">{statusT('cancelled')}</SelectItem>
+                        {([order.status, ...getAllowedOrderStatuses(order.status)] as const).map((status) => (
+                          <SelectItem key={status} value={status}>{statusT(status)}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </TableCell>
