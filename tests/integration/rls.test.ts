@@ -12,12 +12,12 @@ const admin = new Client({connectionString:url})
 const ownerId=randomUUID(),otherId=randomUUID(),adminId=randomUUID(),productId=randomUUID()
 const orderId=randomUUID(),reviewId=randomUUID()
 
-async function asRole<T=unknown>(
+async function asRole(
   role:'anon'|'authenticated',
   subject:string|null,
   sql:string,
   params:unknown[]=[],
-):Promise<QueryResult<T>> {
+):Promise<QueryResult> {
   const client=new Client({connectionString:url})
   await client.connect()
   try{
@@ -25,7 +25,7 @@ async function asRole<T=unknown>(
     // role identifier is a fixed internal literal, never user-input SQL
     await client.query(role==='anon'?'SET LOCAL ROLE anon':'SET LOCAL ROLE authenticated')
     await client.query('SELECT set_config($1,$2,true)', ['request.jwt.claim.sub', subject ?? ''])
-    return await client.query<T>(sql,params)
+    return await client.query(sql,params)
   }finally {
     await client.query('ROLLBACK').catch(()=>{})
     await client.end()
