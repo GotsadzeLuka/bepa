@@ -1,6 +1,6 @@
 # BEPA Storefront
 
-BEPA is a Next.js auto-parts storefront with a database-backed catalog, cart, real checkout, account pages, and a Supabase-backed admin area for products, categories, orders, and news.
+BEPA is a Next.js auto-parts storefront with a database-backed catalog, cart, server-validated order placement (without online card payments), account pages, and a Supabase-backed admin area for products, categories, orders, and news.
 
 ## Stack
 
@@ -72,6 +72,8 @@ npm run db:push
 npm run db:seed
 npm run db:counts
 npm run security:check
+npm test
+npm run check
 npm run db:studio
 ```
 
@@ -83,13 +85,12 @@ npm run db:studio
 - Admin product, category, and news mutations are server actions guarded by `requireAdmin()`.
 - Rendering uses React text nodes; rich HTML rendering is not used.
 - Security headers, including CSP, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`, are set in the proxy.
-- Supabase RLS should remain enabled. Public policies should expose active catalog data and published news only; users should manage only their own profiles, wishlist, reviews, and orders; admin policies stay role-gated by `profiles.role = 'admin'`.
+- Supabase browser API is read-only for application tables, while Prisma-backed server actions handle mutations. Existing deployments must reapply the SQL schema to revoke previously granted write privileges. See `docs/SECURITY.md`.
 
 ## Quality Checks
 
 ```bash
-npm run lint
-npm run build
+npm run check
 ```
 
 The build script runs `prisma generate` before `next build`.
