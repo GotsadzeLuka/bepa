@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { Category, News, Order, OrderItem, Product, ProductImage, ProductVariant, Profile, Review } from '@prisma/client'
 import prisma from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
-import { isAllowedOrderStatusTransition } from '@/lib/order-status'
+import { transitionOrder } from '@/lib/order-fulfillment'
 import {
   revalidateAdminCache,
   revalidateCategoryCache,
@@ -847,45 +847,7 @@ export async function updateOrderStatus(
   const orderId = uuidSchema.parse(id)
   const validated = updateOrderStatusSchema.parse({ status })
 
-  const order = await prisma.$transaction(async (tx) => {
-    const current = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { items: { include: { product: true, variant: true } }, user: true },
-    })
-    if (!current) throw new Error('Order not found')
-    if (!isAllowedOrderStatusTransition(current.status, validated.status)) {
-      throw new Error('Invalid order status transition')
-    }
-    if (current.status === validated.status) return current
-
-    // A conditional write ensures concurrent cancellation can only restock once.
-    const changed = await tx.order.updateMany({
-      where: { id: orderId, status: current.status },
-      data: { status: validated.status },
-    })
-    if (changed.count !== 1) throw new Error('Order status changed; refresh and retry')
-
-    if (validated.status === 'cancelled') {
-      for (const item of current.items) {
-        if (item.variantId) {
-          await tx.productVariant.updateMany({
-            where: { id: item.variantId },
-            data: { stock: { increment: item.quantity } },
-          })
-        } else if (item.productId) {
-          await tx.product.updateMany({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } },
-          })
-        }
-      }
-    }
-
-    return tx.order.findUniqueOrThrow({
-      where: { id: orderId },
-      include: { items: { include: { product: true, variant: true } }, user: true },
-    })
-  })
+  const order = await prisma.$transaction(tx => transitionOrder(tx, orderId, validated.status))
 
   if (validated.status === 'cancelled') {
     for (const item of order.items) revalidateProductCache(item.product)

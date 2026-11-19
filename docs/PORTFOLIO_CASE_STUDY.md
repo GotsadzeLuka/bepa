@@ -4,7 +4,7 @@
 
 **Problem:** Auto-parts shops need searchable catalog pages, variants and inventory, customer accounts, and a way to accept and manage delivery orders.
 
-**Solution:** Next.js and PostgreSQL application with bilingual English/Georgian catalog data, role-based administration, email/Google authentication via Supabase Auth (depending on configured providers), checkout validation, and order fulfillment tools.
+**Solution:** Next.js and PostgreSQL application with bilingual English/Georgian catalog data, role-based administration, Google OAuth via Supabase Auth, checkout validation, and order fulfillment tools.
 
 ## Technical contributions worth highlighting
 
