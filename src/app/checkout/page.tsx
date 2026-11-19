@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, LocateFixed, MapPin, ShoppingBag, ShieldCheck, X } from 'lucide-react'
@@ -69,6 +69,7 @@ export default function CheckoutPage() {
   const t = useTranslations('common')
   const { items, getTotal, clearCart, hasHydrated } = useCartStore()
   const [loading, setLoading] = useState(false)
+  const checkoutAttemptRef = useRef<{ fingerprint: string; id: string } | null>(null)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CheckoutForm>(initialFormData)
@@ -170,10 +171,18 @@ export default function CheckoutPage() {
       return
     }
 
+    if (loading) return
     setLoading(true)
+    // A request may commit even if the browser times out. Reusing this
+    // identifier on a retry prevents duplicate orders and stock decrements.
+    const fingerprint = JSON.stringify({ orderLines, formData, dialCode, localNumber, locationUrl })
+    if (checkoutAttemptRef.current?.fingerprint !== fingerprint) {
+      checkoutAttemptRef.current = { fingerprint, id: crypto.randomUUID() }
+    }
 
     try {
       const order = await createOrder({
+        checkoutRequestId: checkoutAttemptRef.current!.id,
         items: orderLines,
         shippingAddress: {
           firstName: formData.firstName.trim(),

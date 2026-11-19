@@ -212,6 +212,7 @@ export async function createOrder(data: {
     locationUrl?: string
   }
   notes?: string
+  checkoutRequestId: string
 }) {
   const hasInvalidCartIds = data.items.some((item) => {
     const productIdOk = uuidSchema.safeParse(item.productId).success
@@ -226,7 +227,18 @@ export async function createOrder(data: {
   const validated = createOrderSchema.parse(data)
   const authUser = await getAuthUser()
 
-  const order = await prisma.$transaction(async (tx) => {
+  const existingOrder = await prisma.order.findUnique({
+    where: { checkoutRequestId: validated.checkoutRequestId },
+    select: { id: true, userId: true },
+  })
+  if (existingOrder) {
+    if (existingOrder.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
+    return { id: existingOrder.id }
+  }
+
+  let order: { id: string }
+  try {
+    order = await prisma.$transaction(async (tx) => {
     const productIds = [...new Set(validated.items.map((item) => item.productId))]
     const variantIds = [
       ...new Set(
@@ -294,6 +306,7 @@ export async function createOrder(data: {
     const order = await tx.order.create({
       data: {
         userId: authUser?.id ?? null,
+        checkoutRequestId: validated.checkoutRequestId,
         status: 'pending',
         total,
         shippingAddress: validated.shippingAddress,
@@ -346,8 +359,19 @@ export async function createOrder(data: {
       }
     }
 
-    return order
-  })
+    return { id: order.id }
+    })
+  } catch (error) {
+    if ((error as { code?: string })?.code !== 'P2002') throw error
+    // Another request with this idempotency key committed first.
+    const prior = await prisma.order.findUnique({
+      where: { checkoutRequestId: validated.checkoutRequestId },
+      select: { id: true, userId: true },
+    })
+    if (!prior) throw error
+    if (prior.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
+    return { id: prior.id }
+  }
 
   const orderedProducts = await prisma.product.findMany({
     where: { id: { in: [...new Set(validated.items.map((item) => item.productId))] } },
@@ -361,5 +385,5 @@ export async function createOrder(data: {
   revalidatePath('/admin')
   revalidatePath('/admin/orders')
   revalidatePath('/account/orders')
-  return order
+  return { id: order.id }
 }

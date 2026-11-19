@@ -218,12 +218,17 @@ CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   status "OrderStatus" DEFAULT 'pending',
+  checkout_request_id UUID UNIQUE,
   total DECIMAL(10,2) NOT NULL,
   shipping_address JSONB NOT NULL,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Apply to existing databases independently of CREATE TABLE IF NOT EXISTS.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS checkout_request_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS orders_checkout_request_id_key ON orders(checkout_request_id);
 
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 

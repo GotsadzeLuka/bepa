@@ -10,7 +10,9 @@ export function calculateOrderTotal(
       throw new Error('Invalid order quantity')
     }
     const price = new Prisma.Decimal(item.price)
-    if (!price.isFinite() || price.lte(0)) throw new Error('Invalid order price')
-    return total.plus(price.times(item.quantity))
+    if (!price.isFinite() || price.lte(0) || price.decimalPlaces() > 2) throw new Error('Invalid order price')
+    const nextTotal = total.plus(price.times(item.quantity))
+    if (nextTotal.gt('99999999.99')) throw new Error('Order total exceeds supported limit')
+    return nextTotal
   }, new Prisma.Decimal(0))
 }

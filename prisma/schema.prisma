@@ -141,6 +141,7 @@ model Order {
   id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String?     @map("user_id") @db.Uuid
   status          OrderStatus @default(pending)
+  checkoutRequestId String? @unique(map: "orders_checkout_request_id_key") @map("checkout_request_id") @db.Uuid
   total           Decimal     @db.Decimal(10, 2)
   shippingAddress Json        @map("shipping_address")
   notes           String?

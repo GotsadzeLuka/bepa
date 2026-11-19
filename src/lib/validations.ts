@@ -171,7 +171,15 @@ export const orderItemSchema = z.object({
 export const createOrderSchema = z.object({
   shippingAddress: shippingAddressSchema,
   notes: z.string().max(500).optional(),
-  items: z.array(orderItemSchema).min(1, 'Order must have at least one item'),
+  items: z.array(orderItemSchema).min(1, 'Order must have at least one item').max(50),
+  checkoutRequestId: uuidSchema,
+}).superRefine((order, context) => {
+  const seen = new Set<string>()
+  order.items.forEach((item, index) => {
+    const key = item.productId + ':' + (item.variantId ?? '')
+    if (seen.has(key)) context.addIssue({ code: 'custom', path: ['items', index], message: 'Duplicate cart line item' })
+    seen.add(key)
+  })
 })
 
 export const updateOrderStatusSchema = z.object({
