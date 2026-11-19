@@ -29,6 +29,7 @@ jobs:
       DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/bepa
       DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/bepa
       NODE_ENV: test
+      BEPA_ISOLATED_TEST: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
