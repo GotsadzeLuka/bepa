@@ -93,7 +93,11 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       providers: getStringArray(user.app_metadata.providers),
     }
   } catch (error) {
-    console.error('Auth error:', error)
+    // Auth failures fail closed. Do not print raw SDK exceptions: some transport
+    // errors can contain URLs, authorization headers or upstream context.
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[auth] Authentication could not be checked', error instanceof Error ? error.name : 'unknown')
+    }
     return null
   }
 }
