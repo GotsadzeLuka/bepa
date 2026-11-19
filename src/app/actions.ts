@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { calculateOrderTotal } from '@/lib/money'
+import { isSameCheckoutRequest } from '@/lib/checkout-idempotency'
 import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
 import { revalidateAdminCache, revalidateProductCache } from '@/lib/cache'
@@ -235,10 +236,10 @@ export async function createOrder(data: {
 
   const existingOrder = await prisma.order.findUnique({
     where: { checkoutRequestId: validated.checkoutRequestId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, shippingAddress: true, notes: true, items: { select: { productId: true, variantId: true, quantity: true } } },
   })
   if (existingOrder) {
-    if (existingOrder.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
+    if (!isSameCheckoutRequest(existingOrder, validated, authUser?.id ?? null)) throw new Error('Checkout request does not match existing order')
     return { id: existingOrder.id }
   }
 
@@ -372,10 +373,10 @@ export async function createOrder(data: {
     // Another request with this idempotency key committed first.
     const prior = await prisma.order.findUnique({
       where: { checkoutRequestId: validated.checkoutRequestId },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, shippingAddress: true, notes: true, items: { select: { productId: true, variantId: true, quantity: true } } },
     })
     if (!prior) throw error
-    if (prior.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
+    if (!isSameCheckoutRequest(prior, validated, authUser?.id ?? null)) throw new Error('Checkout request does not match existing order')
     return { id: prior.id }
   }
 
