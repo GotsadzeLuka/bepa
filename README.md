@@ -2,6 +2,17 @@
 
 BEPA is a Next.js auto-parts storefront with a database-backed catalog, cart, server-validated order placement (without online card payments), account pages, and a Supabase-backed admin area for products, categories, orders, and news.
 
+## Portfolio highlights
+
+- **Real commercial workflows:** bilingual catalog, variants, cart, guest checkout, customer accounts, admin inventory and news.
+- **Backend reliability:** atomic stock decrements, decimal pricing, idempotent order requests, and transactional cancellation/restocking.
+- **Security:** Supabase authentication, server-checked admin roles, Zod input validation, read-only browser database grants, and validated media uploads.
+- **Quality:** offline regression tests, type checks, security checks and a GitHub Actions quality workflow.
+
+**Scope:** Orders are placed for offline confirmation; no online payment integration is claimed. The original Vercel/Supabase infrastructure may be intentionally offline. Tests and GitHub documentation are provided independently of hosted services.
+
+[Architecture and tradeoffs](docs/ARCHITECTURE.md) · [Security and rollout](docs/SECURITY.md) · [Portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
+
 ## Stack
 
 - Next.js App Router, React, TypeScript
@@ -62,7 +73,7 @@ Create one public Supabase Storage bucket matching `NEXT_PUBLIC_SUPABASE_STORAGE
 - `seed/categories/`
 - `seed/news/`
 
-Admin uploads are generated server-side under `admin/products/`, `admin/categories/`, and `admin/news/`. Uploaded files are validated server-side as JPEG, PNG, WebP, or AVIF and limited to 5 MB.
+Admin uploads are generated server-side under `admin/products/`, `admin/categories/`, and `admin/news/`. Uploaded files are checked for JPEG, PNG, WebP or AVIF magic bytes, must have an allowlisted MIME type, and are limited to 5 MiB.
 
 Useful commands:
 
@@ -93,4 +104,6 @@ npm run db:studio
 npm run check
 ```
 
-The build script runs `prisma generate` before `next build`.
+The build script runs `prisma generate` before `next build`. For a configured PostgreSQL environment, run `npm run db:permissions` to verify anonymous and authenticated users cannot perform direct table writes.
+
+**CI verification:** Workflow status must be checked on GitHub. A workflow failure before any job steps is not evidence of a passing or failing test suite.

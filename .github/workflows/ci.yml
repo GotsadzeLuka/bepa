@@ -1,5 +1,6 @@
 name: Quality and security checks
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]

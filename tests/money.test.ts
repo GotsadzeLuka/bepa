@@ -20,3 +20,9 @@ test('checkout rejects empty orders and invalid values', () => {
     assert.throws(() => calculateOrderTotal([{ price, quantity: 1 }]))
   }
 })
+
+
+test('checkout rejects non-cent precision and totals exceeding DECIMAL(10,2)', () => {
+  assert.throws(() => calculateOrderTotal([{ price: '0.001', quantity: 1 }]))
+  assert.throws(() => calculateOrderTotal([{ price: '99999999.99', quantity: 2 }]))
+})

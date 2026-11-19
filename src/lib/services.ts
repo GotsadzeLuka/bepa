@@ -21,7 +21,6 @@ import type {
   UpdateProductInput,
   CreateCategoryInput,
   UpdateCategoryInput,
-  CreateOrderInput,
   CreateReviewInput,
   CreateNewsInput,
   UpdateNewsInput,

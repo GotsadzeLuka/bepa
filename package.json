@@ -18,7 +18,8 @@
     "security:check": "tsx scripts/security-checks.ts",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run security:check && npm test && npm run build && npm run typecheck"
+    "check": "npm run lint && npm run security:check && npm test && npm run build && npm run typecheck",
+    "db:permissions": "tsx scripts/check-db-permissions.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
