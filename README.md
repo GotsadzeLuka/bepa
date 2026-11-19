@@ -13,6 +13,26 @@ BEPA is a Next.js auto-parts storefront with a database-backed catalog, cart, se
 
 [Architecture and tradeoffs](docs/ARCHITECTURE.md) · [Security and rollout](docs/SECURITY.md) · [Portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
 
+
+## Engineering hardening: disposable database tests
+
+The checkout uses the actual conditional `reserveInventory` transaction boundary and verifies that reusing a guest checkout request ID cannot return a different cart/address's order ID. Administrative variant synchronization preserves order-linked variant IDs so later cancellation can restore stock correctly. The authoritative order status transition service is also used by legacy service callers. See [variant history](docs/VARIANT_HISTORY.md), [checkout safety](docs/CHECKOUT_VERIFICATION.md), and [database reproducibility](docs/POSTGRESQL_TESTING.md).
+
+A separate CI job provisions disposable PostgreSQL 16, applies the Prisma schema plus additional data-integrity constraints, bootstraps isolated Supabase-like authentication roles/RLS policies, and runs **real SQL-backed integration tests** for concurrency, rollback, cancellation, review uniqueness and permissions. The tests are implemented but **have not executed on the PR's GitHub runner**; runners have been failing before steps start. For a local disposable database, run:
+
+```bash
+npm ci
+export NODE_ENV=test
+export DATABASE_URL='postgresql://ci:ci@127.0.0.1:5432/bepa'
+export DIRECT_URL="$DATABASE_URL"
+npx prisma db push
+npm run db:constraints
+npm run db:rls:bootstrap
+npm run test:integration
+```
+
+**Never use these disposable-test commands against an actual Supabase database.** Existing production installations need an operator-reviewed migration for the updated policies and constraints, and hosted credentials/SSO integrations need independent acceptance tests.
+
 ## Stack
 
 - Next.js App Router, React, TypeScript
