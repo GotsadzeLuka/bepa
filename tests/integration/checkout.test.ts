@@ -5,7 +5,11 @@ import { prisma } from '../../src/lib/db'
 import { reserveInventory } from '../../src/lib/inventory'
 import { transitionOrder } from '../../src/lib/order-fulfillment'
 
-if (!process.env.DATABASE_URL) throw new Error('Integration tests require disposable DATABASE_URL')
+const testUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL
+if (process.env.BEPA_ISOLATED_TEST !== '1' || process.env.NODE_ENV !== 'test' ||
+    !testUrl || !['127.0.0.1','localhost'].includes(new URL(testUrl).hostname)) {
+  throw new Error('Integration tests require BEPA_ISOLATED_TEST=1, NODE_ENV=test and disposable loopback PostgreSQL')
+}
 
 const products: string[] = []
 const orders: string[] = []
@@ -37,6 +41,7 @@ after(async () => {
   await prisma.review.deleteMany({where:{userId:{in:profiles}}})
   await prisma.product.deleteMany({where:{id:{in:products}}})
   await prisma.profile.deleteMany({where:{id:{in:profiles}}})
+  if (profiles.length) await prisma.$executeRaw`DELETE FROM auth.users WHERE id = ANY(${profiles}::uuid[])`
   await prisma.$disconnect()
 })
 
@@ -121,7 +126,10 @@ test('shipped orders reject cancellation without restocking', async () => {
 test('unique review per product and user survives concurrent inserts', async () => {
   const p=await createProduct()
   const uid=randomUUID();profiles.push(uid)
-  await prisma.profile.create({data:{id:uid,email:'test-' + uid + '@example.invalid',role:'user'}})
+  // Create an auth identity first: the database signup trigger creates its profile.
+  // This exercises the Supabase auth.users -> profiles integrity boundary.
+  await prisma.$executeRaw`INSERT INTO auth.users (id, email) VALUES (${uid}::uuid, ${'test-'+uid+'@example.invalid'})`
+  assert.equal(await prisma.profile.count({where:{id:uid}}),1)
   const write=()=>prisma.review.create({data:{productId:p.id,userId:uid,rating:5}})
   const outcomes=await Promise.allSettled([write(),write()])
   assert.equal(outcomes.filter(o=>o.status==='fulfilled').length,1)
