@@ -41,7 +41,7 @@ after(async () => {
   await prisma.review.deleteMany({where:{userId:{in:profiles}}})
   await prisma.product.deleteMany({where:{id:{in:products}}})
   await prisma.profile.deleteMany({where:{id:{in:profiles}}})
-  if (profiles.length) await prisma.$executeRaw`DELETE FROM auth.users WHERE id = ANY(${profiles}::uuid[])`
+  for (const id of profiles) await prisma.$executeRaw`DELETE FROM auth.users WHERE id = ${id}::uuid`
   await prisma.$disconnect()
 })
 
