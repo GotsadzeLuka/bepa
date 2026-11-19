@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { calculateOrderTotal } from '@/lib/money'
 import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
 import { revalidateAdminCache, revalidateProductCache } from '@/lib/cache'
@@ -284,11 +285,11 @@ export async function createOrder(data: {
 
       return {
         ...item,
-        price: Number(variant?.price ?? product.salePrice ?? product.price),
+        price: variant?.price ?? product.salePrice ?? product.price,
       }
     })
 
-    const total = pricedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const total = calculateOrderTotal(pricedItems)
 
     const order = await tx.order.create({
       data: {

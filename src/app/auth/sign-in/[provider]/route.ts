@@ -1,3 +1,4 @@
+import { getSafeRedirect } from '@/lib/safe-redirect'
 import { createServerClient } from '@supabase/ssr'
 import type { CookieOptions } from '@supabase/ssr'
 import type { Provider } from '@supabase/supabase-js'
@@ -20,13 +21,6 @@ type CookieToSet = {
   options: CookieOptions
 }
 
-function getSafeRedirect(next: string | null) {
-  if (next?.startsWith('/') && !next.startsWith('//')) {
-    return next
-  }
-
-  return '/'
-}
 
 function getOAuthOrigin(request: NextRequest) {
   return getPublicAppUrl() || request.nextUrl.origin

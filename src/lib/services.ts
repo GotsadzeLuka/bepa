@@ -365,61 +365,6 @@ export const orderService = {
   },
 
   /**
-   * Create order with items in a transaction.
-   */
-  async createOrder(userId: string | null, data: CreateOrderInput, itemPrices: Map<string, number>) {
-    // Calculate total from validated prices
-    let total = 0
-    for (const item of data.items) {
-      const price = itemPrices.get(item.productId + (item.variantId || ''))
-      if (!price) throw new Error('Invalid product price')
-      total += price * item.quantity
-    }
-
-    // Use transaction for atomic order creation
-    return prisma.$transaction(async (tx) => {
-      // Create order
-      const order = await tx.order.create({
-        data: {
-          userId,
-          total,
-          shippingAddress: data.shippingAddress,
-          notes: data.notes,
-          status: 'pending',
-        },
-      })
-
-      // Create order items
-      await tx.orderItem.createMany({
-        data: data.items.map((item) => ({
-          orderId: order.id,
-          productId: item.productId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price: itemPrices.get(item.productId + (item.variantId || ''))!,
-        })),
-      })
-
-      // Update product stock
-      for (const item of data.items) {
-        if (item.variantId) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { decrement: item.quantity } },
-          })
-        } else {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          })
-        }
-      }
-
-      return order
-    })
-  },
-
-  /**
    * Update order status (admin).
    */
   async updateOrderStatus(id: string, status: string) {

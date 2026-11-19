@@ -1,14 +1,8 @@
+import { getSafeRedirect } from '@/lib/safe-redirect'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { oauthNextCookieName } from '@/lib/supabase/config'
 
-function getSafeRedirect(next: string | null) {
-  if (next?.startsWith('/') && !next.startsWith('//')) {
-    return next
-  }
-
-  return '/'
-}
 
 function getCookieRedirect(request: NextRequest) {
   const next = request.cookies.get(oauthNextCookieName)?.value

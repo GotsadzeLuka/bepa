@@ -443,27 +443,21 @@ CREATE INDEX IF NOT EXISTS reviews_product_id_is_approved_created_at_idx ON revi
 CREATE INDEX IF NOT EXISTS news_is_published_created_at_idx ON news(is_published, created_at);
 
 -- =====================================================
--- DATA API GRANTS
--- =====================================================
--- New Supabase projects may not expose public tables to PostgREST/GraphQL
--- automatically. These grants expose table operations, while RLS policies above
--- still control which rows each role can read or mutate.
+-- DATA API GRANTS: read-only browser access
+-- Browser users must never change their role, approve reviews or create orders
+-- outside authenticated server actions. REVOKE removes previously granted
+-- table-level privileges from existing installations.
+REVOKE ALL ON TABLE
+  profiles, categories, products, product_images, product_variants,
+  orders, order_items, wishlist, reviews, news
+  FROM PUBLIC, anon, authenticated;
+
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 
+-- RLS still controls which rows these roles may read.
 GRANT SELECT ON categories, products, product_images, product_variants, news, reviews
   TO anon, authenticated;
-
-GRANT SELECT, INSERT, UPDATE ON profiles
+GRANT SELECT ON profiles, orders, order_items, wishlist
   TO authenticated;
 
-GRANT SELECT, INSERT, DELETE ON wishlist
-  TO authenticated;
-
-GRANT SELECT, INSERT, UPDATE ON reviews
-  TO authenticated;
-
-GRANT SELECT ON orders, order_items
-  TO authenticated;
-
-GRANT INSERT ON orders, order_items
-  TO authenticated;
+-- Only trusted server-side Prisma and administrator code performs mutations.

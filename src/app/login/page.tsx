@@ -1,3 +1,4 @@
+import { getSafeRedirect } from '@/lib/safe-redirect'
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -20,7 +21,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
   const authError = searchParams.get('error')
-  const redirect = redirectParam?.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/'
+  const redirect = getSafeRedirect(redirectParam)
 
   const [oauthLoading, setOauthLoading] = useState<Provider | null>(null)
 
