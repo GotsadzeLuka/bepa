@@ -320,6 +320,10 @@ CREATE TABLE IF NOT EXISTS reviews (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Enforce one review per user/product even under concurrent requests.
+-- Existing duplicate records must be reconciled before applying this index.
+CREATE UNIQUE INDEX IF NOT EXISTS reviews_user_id_product_id_key ON reviews(user_id, product_id);
+
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Approved reviews are viewable by everyone" ON reviews;

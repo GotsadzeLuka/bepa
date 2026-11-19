@@ -14,6 +14,7 @@ import {
 } from '@/lib/cache'
 import { createAdminClient } from '@/lib/supabase/server'
 import { supabaseStorageBucket } from '@/lib/supabase/config'
+import { hasValidImageSignature } from '@/lib/image-signature'
 import {
   createProductSchema,
   updateProductSchema,
@@ -244,6 +245,9 @@ async function uploadImageToStorage(folder: AdminStorageFolder, file: File) {
   const extension = getValidatedImageExtension(file)
   const storagePath = `admin/${folder}/${randomUUID()}.${extension}`
   const bytes = Buffer.from(await file.arrayBuffer())
+  if (!hasValidImageSignature(bytes, file.type)) {
+    throw new Error('Image bytes do not match the declared image type')
+  }
   const supabase = await createAdminClient()
 
   const { error } = await supabase.storage

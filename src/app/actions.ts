@@ -157,7 +157,9 @@ export async function createReview(data: {
     throw new Error('You have already reviewed this product')
   }
 
-  const review = await prisma.review.create({
+  let review
+  try {
+    review = await prisma.review.create({
     data: {
       userId: authUser.id,
       productId: validated.productId,
@@ -165,7 +167,11 @@ export async function createReview(data: {
       comment: validated.comment,
       isApproved: false, // Requires admin approval
     },
-  })
+    })
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'P2002') throw new Error('You have already reviewed this product')
+    throw error
+  }
 
   revalidatePath('/admin/reviews')
   return review
