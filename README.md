@@ -22,7 +22,7 @@ BEPA is a Next.js auto-parts storefront with a database-backed catalog, cart, se
 
 ## Local Setup
 
-1. Install dependencies:
+1. Install dependencies (Node.js 22 recommended):
 
 ```bash
 npm install
@@ -43,7 +43,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). Complete storefront, login and order operations require configured Supabase credentials. **Offline tests and source review do not require the old hosted environment.**
 
 ## Environment Variables
 

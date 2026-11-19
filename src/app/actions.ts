@@ -160,13 +160,13 @@ export async function createReview(data: {
   let review
   try {
     review = await prisma.review.create({
-    data: {
-      userId: authUser.id,
-      productId: validated.productId,
-      rating: validated.rating,
-      comment: validated.comment,
-      isApproved: false, // Requires admin approval
-    },
+      data: {
+        userId: authUser.id,
+        productId: validated.productId,
+        rating: validated.rating,
+        comment: validated.comment,
+        isApproved: false, // Requires admin approval
+      },
     })
   } catch (error) {
     if ((error as { code?: string })?.code === 'P2002') throw new Error('You have already reviewed this product')
@@ -245,127 +245,127 @@ export async function createOrder(data: {
   let order: { id: string }
   try {
     order = await prisma.$transaction(async (tx) => {
-    const productIds = [...new Set(validated.items.map((item) => item.productId))]
-    const variantIds = [
-      ...new Set(
-        validated.items
-          .map((item) => item.variantId)
-          .filter((variantId): variantId is string => Boolean(variantId))
-      ),
-    ]
-
-    const [products, variants] = await Promise.all([
-      tx.product.findMany({
-        where: {
-          id: { in: productIds },
-          isActive: true,
-        },
-        select: {
-          id: true,
-          slug: true,
-          price: true,
-          salePrice: true,
-          stock: true,
-        },
-      }),
-      tx.productVariant.findMany({
-        where: {
-          id: { in: variantIds },
-          isActive: true,
-        },
-        select: {
-          id: true,
-          productId: true,
-          price: true,
-          stock: true,
-        },
-      }),
-    ])
-
-    const productsById = new Map(products.map((product) => [product.id, product]))
-    const variantsById = new Map(variants.map((variant) => [variant.id, variant]))
-    const pricedItems = validated.items.map((item) => {
-      const product = productsById.get(item.productId)
-      const variant = item.variantId ? variantsById.get(item.variantId) : null
-
-      if (!product || (item.variantId && !variant)) {
-        throw new Error('One or more products are unavailable.')
-      }
-
-      if (variant && variant.productId !== item.productId) {
-        throw new Error('Invalid product variant selected.')
-      }
-
-      const stock = variant?.stock ?? product.stock
-      if (stock < item.quantity) {
-        throw new Error('One or more products do not have enough stock.')
-      }
-
-      return {
-        ...item,
-        price: variant?.price ?? product.salePrice ?? product.price,
-      }
-    })
-
-    const total = calculateOrderTotal(pricedItems)
-
-    const order = await tx.order.create({
-      data: {
-        userId: authUser?.id ?? null,
-        checkoutRequestId: validated.checkoutRequestId,
-        status: 'pending',
-        total,
-        shippingAddress: validated.shippingAddress,
-        notes: validated.notes,
-      },
-    })
-
-    await tx.orderItem.createMany({
-      data: pricedItems.map((item) => ({
-        orderId: order.id,
-        productId: item.productId,
-        variantId: item.variantId,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    })
-
-    for (const item of pricedItems) {
-      if (item.variantId) {
-        const updatedVariant = await tx.productVariant.updateMany({
+      const productIds = [...new Set(validated.items.map((item) => item.productId))]
+      const variantIds = [
+        ...new Set(
+          validated.items
+            .map((item) => item.variantId)
+            .filter((variantId): variantId is string => Boolean(variantId))
+        ),
+      ]
+  
+      const [products, variants] = await Promise.all([
+        tx.product.findMany({
           where: {
-            id: item.variantId,
-            productId: item.productId,
+            id: { in: productIds },
             isActive: true,
-            stock: { gte: item.quantity },
           },
-          data: {
-            stock: { decrement: item.quantity },
+          select: {
+            id: true,
+            slug: true,
+            price: true,
+            salePrice: true,
+            stock: true,
           },
-        })
-
-        if (updatedVariant.count !== 1) {
+        }),
+        tx.productVariant.findMany({
+          where: {
+            id: { in: variantIds },
+            isActive: true,
+          },
+          select: {
+            id: true,
+            productId: true,
+            price: true,
+            stock: true,
+          },
+        }),
+      ])
+  
+      const productsById = new Map(products.map((product) => [product.id, product]))
+      const variantsById = new Map(variants.map((variant) => [variant.id, variant]))
+      const pricedItems = validated.items.map((item) => {
+        const product = productsById.get(item.productId)
+        const variant = item.variantId ? variantsById.get(item.variantId) : null
+  
+        if (!product || (item.variantId && !variant)) {
+          throw new Error('One or more products are unavailable.')
+        }
+  
+        if (variant && variant.productId !== item.productId) {
+          throw new Error('Invalid product variant selected.')
+        }
+  
+        const stock = variant?.stock ?? product.stock
+        if (stock < item.quantity) {
           throw new Error('One or more products do not have enough stock.')
         }
-      } else {
-        const updatedProduct = await tx.product.updateMany({
-          where: {
-            id: item.productId,
-            isActive: true,
-            stock: { gte: item.quantity },
-          },
-          data: {
-            stock: { decrement: item.quantity },
-          },
-        })
-
-        if (updatedProduct.count !== 1) {
-          throw new Error('One or more products do not have enough stock.')
+  
+        return {
+          ...item,
+          price: variant?.price ?? product.salePrice ?? product.price,
+        }
+      })
+  
+      const total = calculateOrderTotal(pricedItems)
+  
+      const order = await tx.order.create({
+        data: {
+          userId: authUser?.id ?? null,
+          checkoutRequestId: validated.checkoutRequestId,
+          status: 'pending',
+          total,
+          shippingAddress: validated.shippingAddress,
+          notes: validated.notes,
+        },
+      })
+  
+      await tx.orderItem.createMany({
+        data: pricedItems.map((item) => ({
+          orderId: order.id,
+          productId: item.productId,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      })
+  
+      for (const item of pricedItems) {
+        if (item.variantId) {
+          const updatedVariant = await tx.productVariant.updateMany({
+            where: {
+              id: item.variantId,
+              productId: item.productId,
+              isActive: true,
+              stock: { gte: item.quantity },
+            },
+            data: {
+              stock: { decrement: item.quantity },
+            },
+          })
+  
+          if (updatedVariant.count !== 1) {
+            throw new Error('One or more products do not have enough stock.')
+          }
+        } else {
+          const updatedProduct = await tx.product.updateMany({
+            where: {
+              id: item.productId,
+              isActive: true,
+              stock: { gte: item.quantity },
+            },
+            data: {
+              stock: { decrement: item.quantity },
+            },
+          })
+  
+          if (updatedProduct.count !== 1) {
+            throw new Error('One or more products do not have enough stock.')
+          }
         }
       }
-    }
-
-    return { id: order.id }
+  
+      return { id: order.id }
     })
   } catch (error) {
     if ((error as { code?: string })?.code !== 'P2002') throw error
