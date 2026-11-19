@@ -41,11 +41,9 @@ DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert own profile" ON profiles
-  FOR INSERT WITH CHECK (auth.uid() = id);
+-- No browser INSERT/UPDATE policy is created: user-editable profile fields and
+-- roles are updated only through authenticated server actions. In particular,
+-- users must never be able to assign themselves role='admin' through Data API.
 
 -- Function to automatically create profile on signup
 CREATE SCHEMA IF NOT EXISTS private;
@@ -239,9 +237,8 @@ CREATE POLICY "Users can view own orders" ON orders
 DROP POLICY IF EXISTS "Users can create orders" ON orders;
 DROP POLICY IF EXISTS "Users and guests can create scoped orders" ON orders;
 DROP POLICY IF EXISTS "Admins can manage all orders" ON orders;
-CREATE POLICY "Users and guests can create scoped orders" ON orders
-  FOR INSERT WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
-
+-- Guest and member checkout INSERT is server-only. Never allow an anon role to
+-- create orders directly with arbitrary totals or user_id=NULL.
 CREATE POLICY "Admins can manage all orders" ON orders
   FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
@@ -271,15 +268,7 @@ CREATE POLICY "Users can view own order items" ON order_items
 DROP POLICY IF EXISTS "Users can create order items" ON order_items;
 DROP POLICY IF EXISTS "Users and guests can create scoped order items" ON order_items;
 DROP POLICY IF EXISTS "Admins can manage all order items" ON order_items;
-CREATE POLICY "Users and guests can create scoped order items" ON order_items
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM orders
-      WHERE orders.id = order_items.order_id
-        AND (orders.user_id IS NULL OR orders.user_id = auth.uid())
-    )
-  );
-
+-- Order line pricing and quantity are server-validated. No Data API INSERT.
 CREATE POLICY "Admins can manage all order items" ON order_items
   FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
@@ -333,12 +322,8 @@ DROP POLICY IF EXISTS "Admins can manage all reviews" ON reviews;
 CREATE POLICY "Approved reviews are viewable by everyone" ON reviews
   FOR SELECT USING (is_approved = true OR auth.uid() = user_id);
 
-CREATE POLICY "Users can create reviews" ON reviews
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own reviews" ON reviews
-  FOR UPDATE USING (auth.uid() = user_id);
-
+-- Reviews (including moderation fields) are mutated only in server actions.
+-- No browser INSERT or UPDATE policy, even for the caller's own review.
 CREATE POLICY "Admins can manage all reviews" ON reviews
   FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')

@@ -222,7 +222,10 @@ export async function createOrder(data: {
   notes?: string
   checkoutRequestId: string
 }) {
-  const hasInvalidCartIds = data.items.some((item) => {
+  // Server actions are public entry points: runtime payloads need validation even
+  // when TypeScript callers promise a well-formed cart.
+  const hasInvalidCartIds = Array.isArray(data?.items) && data.items.some((item) => {
+    if (!item || typeof item !== 'object') return true
     const productIdOk = uuidSchema.safeParse(item.productId).success
     const variantIdOk = item.variantId ? uuidSchema.safeParse(item.variantId).success : true
     return !productIdOk || !variantIdOk
