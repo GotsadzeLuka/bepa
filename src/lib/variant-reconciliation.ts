@@ -37,10 +37,13 @@ export async function reconcileProductVariants(
     // display name: that can make historical order cancellation restock the
     // wrong variant. Name-based migration is permitted only from no-SKU rows.
     const normalizedName = variant.nameEn.trim().toLowerCase()
-    const eligible = existing.filter(candidate => !retained.has(candidate.id) &&
-      (sku
-        ? candidate.sku === sku || (candidate.sku === null && candidate.nameEn.trim().toLowerCase() === normalizedName)
-        : candidate.sku === null && candidate.nameEn.trim().toLowerCase() === normalizedName))
+    const exactSku = sku
+      ? existing.filter(candidate => !retained.has(candidate.id) && candidate.sku === sku)
+      : []
+    const legacyName = existing.filter(candidate => !retained.has(candidate.id) &&
+      candidate.sku === null && candidate.nameEn.trim().toLowerCase() === normalizedName)
+    // An explicit SKU wins over a name collision with a legacy no-SKU row.
+    const eligible = exactSku.length ? exactSku : legacyName
     if (eligible.length > 1) {
       throw new Error('Ambiguous existing variants; resolve duplicate SKU or legacy name before saving.')
     }

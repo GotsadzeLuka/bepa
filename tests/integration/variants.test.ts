@@ -77,6 +77,22 @@ test('changing an ordered SKU cannot hijack its historical stock identity',async
  assert.equal((await prisma.productVariant.findUniqueOrThrow({where:{id:newer.id}})).stock,8)
 })
 
+test('an exact SKU wins over a legacy name collision',async()=>{
+ const p=await product()
+ const correct=await prisma.productVariant.create({data:{
+  productId:p.id,nameEn:'Standard',nameKa:'სტანდარტი',sku:'STD',price:'12.00',stock:1,
+ }})
+ const legacy=await prisma.productVariant.create({data:{
+  productId:p.id,nameEn:'Standard',nameKa:'სტანდარტი',sku:null,price:'12.00',stock:1,
+ }})
+ await prisma.$transaction(tx=>reconcileProductVariants(tx,p.id,[{
+  nameEn:'Standard',nameKa:'სტანდარტი',sku:'STD',price:13,stock:2,isActive:true,
+ }]))
+ const same=await prisma.productVariant.findUniqueOrThrow({where:{id:correct.id}})
+ assert.equal(same.stock,2)
+ assert.equal((await prisma.productVariant.findUnique({where:{id:legacy.id}})),null)
+})
+
 test('duplicate variants fail atomically',async()=>{
  const p=await product()
  await assert.rejects(prisma.$transaction(tx=>reconcileProductVariants(tx,p.id,[
