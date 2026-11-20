@@ -7,3 +7,7 @@ The `reconcileProductVariants` transactional helper now updates existing variant
 The admin input contract is unchanged. Renaming both SKU and name at once cannot be inferred as the same variant; in that case an ordered old variant is preserved inactive and a new variant is created. The returned ordering of retained variants is unchanged.
 
 Real PostgreSQL integration tests are in `tests/integration/variants.test.ts`; they have not been independently executed until CI has runner capacity.
+
+## Stable identity against SKU-name collisions
+
+Incoming variants with an explicit SKU now match existing variants only by that same SKU, or by a *legacy no-SKU* name when an unambiguous migration is possible. An old variant with a different non-empty SKU is never reidentified solely because its display name matches. Ambiguous old rows fail closed. The synthetic PostgreSQL integration suite includes an order-linked SKU-change case that protects cancellation restock from silently moving to a newly created SKU.

@@ -56,6 +56,27 @@ test('editing variants preserves stable IDs and deletes unreferenced records',as
  assert.equal(await prisma.productVariant.findUnique({where:{id:v.id}}),null)
 })
 
+test('changing an ordered SKU cannot hijack its historical stock identity',async()=>{
+ const p=await product()
+ const old=await prisma.productVariant.create({data:{
+  productId:p.id,nameEn:'Standard',nameKa:'სტანდარტი',sku:'ORIGINAL',price:'12.00',stock:0,
+ }})
+ const o=await prisma.order.create({data:{status:'confirmed',shippingAddress:{test:true},total:'12.00'}})
+ orders.push(o.id)
+ await prisma.orderItem.create({data:{orderId:o.id,productId:p.id,variantId:old.id,quantity:1,price:'12.00'}})
+ await prisma.$transaction(tx=>reconcileProductVariants(tx,p.id,[{
+  nameEn:'Standard',nameKa:'სტანდარტი',sku:'NEW',price:15,stock:8,isActive:true,
+ }]))
+ const original=await prisma.productVariant.findUniqueOrThrow({where:{id:old.id}})
+ const newer=await prisma.productVariant.findFirstOrThrow({where:{productId:p.id,sku:'NEW'}})
+ assert.equal(original.isActive,false)
+ assert.equal(original.sku,'ORIGINAL')
+ assert.notEqual(newer.id,old.id)
+ await prisma.$transaction(tx=>transitionOrder(tx,o.id,'cancelled'))
+ assert.equal((await prisma.productVariant.findUniqueOrThrow({where:{id:old.id}})).stock,1)
+ assert.equal((await prisma.productVariant.findUniqueOrThrow({where:{id:newer.id}})).stock,8)
+})
+
 test('duplicate variants fail atomically',async()=>{
  const p=await product()
  await assert.rejects(prisma.$transaction(tx=>reconcileProductVariants(tx,p.id,[

@@ -33,11 +33,18 @@ export async function reconcileProductVariants(
 
   for (const variant of incoming) {
     const sku = variant.sku?.trim() || null
-    // Prefer stable SKUs; name fallback supports preexisting records without SKU.
-    const match = existing.find((candidate) => !retained.has(candidate.id) &&
-      (sku && candidate.sku === sku ||
-        candidate.nameEn.trim().toLowerCase() === variant.nameEn.trim().toLowerCase())
-    )
+    // SKU is the stable identity. NEVER remap an existing non-null SKU by
+    // display name: that can make historical order cancellation restock the
+    // wrong variant. Name-based migration is permitted only from no-SKU rows.
+    const normalizedName = variant.nameEn.trim().toLowerCase()
+    const eligible = existing.filter(candidate => !retained.has(candidate.id) &&
+      (sku
+        ? candidate.sku === sku || (candidate.sku === null && candidate.nameEn.trim().toLowerCase() === normalizedName)
+        : candidate.sku === null && candidate.nameEn.trim().toLowerCase() === normalizedName))
+    if (eligible.length > 1) {
+      throw new Error('Ambiguous existing variants; resolve duplicate SKU or legacy name before saving.')
+    }
+    const match = eligible[0]
     const data = {
       nameEn: variant.nameEn, nameKa: variant.nameKa,
       sku, price: variant.price, stock: variant.stock, isActive: variant.isActive,
