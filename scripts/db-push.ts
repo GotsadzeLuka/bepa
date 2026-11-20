@@ -15,6 +15,7 @@ if (!databaseUrl) {
 async function main() {
   const schemaPath = resolve('supabase/schema.sql')
   const schemaSql = await readFile(schemaPath, 'utf8')
+  const integritySql = await readFile(resolve('supabase/integrity.sql'), 'utf8')
   const client = new Client({
     connectionString: databaseUrl,
     connectionTimeoutMillis: 10_000,
@@ -23,6 +24,7 @@ async function main() {
   await client.connect()
   try {
     await client.query(schemaSql)
+    await client.query(integritySql)
     console.log(`Applied Supabase schema bootstrap from ${schemaPath}`)
   } finally {
     await client.end()

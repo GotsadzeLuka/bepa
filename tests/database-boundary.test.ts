@@ -10,3 +10,12 @@ test('schema revokes historical browser mutations and grants only read access', 
   assert.match(grants, /GRANT SELECT ON profiles, orders, order_items, wishlist\s+TO authenticated;/)
   assert.doesNotMatch(grants, /GRANT\s+(?:INSERT|UPDATE|DELETE|ALL)\s+ON\s+/i)
 })
+
+test('browser policies do not authorize direct checkout or review moderation', () => {
+  assert.doesNotMatch(sql, /CREATE POLICY "Users and guests can create scoped orders" ON orders/)
+  assert.doesNotMatch(sql, /CREATE POLICY "Users and guests can create scoped order items" ON order_items/)
+  assert.doesNotMatch(sql, /CREATE POLICY "Users can update own profile" ON profiles/)
+  assert.doesNotMatch(sql, /CREATE POLICY "Users can insert own profile" ON profiles/)
+  assert.doesNotMatch(sql, /CREATE POLICY "Users can update own reviews" ON reviews/)
+  assert.doesNotMatch(sql, /CREATE POLICY "Users can create reviews" ON reviews/)
+})

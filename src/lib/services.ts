@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db'
 import { unstable_cache } from 'next/cache'
 import { cacheTags, PUBLIC_CACHE_REVALIDATE_SECONDS } from '@/lib/cache'
 import type { OrderStatus, Prisma } from '@prisma/client'
+import { transitionOrder } from '@/lib/order-fulfillment'
 import { slugSchema } from '@/lib/validations'
 import type {
   ProductFilterInput,
@@ -366,11 +367,10 @@ export const orderService = {
   /**
    * Update order status (admin).
    */
-  async updateOrderStatus(id: string, status: string) {
-    return prisma.order.update({
-      where: { id },
-      data: { status: status as OrderStatus },
-    })
+  async updateOrderStatus(id: string, status: OrderStatus) {
+    // All status writes must follow the authoritative inventory transaction.
+    // API/action callers must enforce administrator permissions.
+    return prisma.$transaction((tx) => transitionOrder(tx, id, status))
   },
 }
 

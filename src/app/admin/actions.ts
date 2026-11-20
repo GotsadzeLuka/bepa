@@ -6,6 +6,7 @@ import type { Category, News, Order, OrderItem, Product, ProductImage, ProductVa
 import prisma from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
 import { transitionOrder } from '@/lib/order-fulfillment'
+import { reconcileProductVariants } from '@/lib/variant-reconciliation'
 import {
   revalidateAdminCache,
   revalidateCategoryCache,
@@ -615,23 +616,7 @@ export async function syncProductVariants(
     throw new Error('Product not found')
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.productVariant.deleteMany({ where: { productId: validatedProductId } })
-
-    if (validatedVariants.length > 0) {
-      await tx.productVariant.createMany({
-        data: validatedVariants.map((variant) => ({
-          productId: validatedProductId,
-          nameEn: variant.nameEn,
-          nameKa: variant.nameKa,
-          sku: variant.sku || null,
-          price: variant.price,
-          stock: variant.stock,
-          isActive: variant.isActive,
-        })),
-      })
-    }
-  })
+  await prisma.$transaction((tx) => reconcileProductVariants(tx, validatedProductId, validatedVariants))
 
   revalidateStorefrontProduct(product)
 }

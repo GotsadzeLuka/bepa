@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { calculateOrderTotal } from '@/lib/money'
+import { isSameCheckoutRequest } from '@/lib/checkout-idempotency'
+import { reserveInventory } from '@/lib/inventory'
 import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
 import { revalidateAdminCache, revalidateProductCache } from '@/lib/cache'
@@ -220,7 +222,10 @@ export async function createOrder(data: {
   notes?: string
   checkoutRequestId: string
 }) {
-  const hasInvalidCartIds = data.items.some((item) => {
+  // Server actions are public entry points: runtime payloads need validation even
+  // when TypeScript callers promise a well-formed cart.
+  const hasInvalidCartIds = Array.isArray(data?.items) && data.items.some((item) => {
+    if (!item || typeof item !== 'object') return true
     const productIdOk = uuidSchema.safeParse(item.productId).success
     const variantIdOk = item.variantId ? uuidSchema.safeParse(item.variantId).success : true
     return !productIdOk || !variantIdOk
@@ -235,10 +240,10 @@ export async function createOrder(data: {
 
   const existingOrder = await prisma.order.findUnique({
     where: { checkoutRequestId: validated.checkoutRequestId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, shippingAddress: true, notes: true, items: { select: { productId: true, variantId: true, quantity: true } } },
   })
   if (existingOrder) {
-    if (existingOrder.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
+    if (!isSameCheckoutRequest(existingOrder, validated, authUser?.id ?? null)) throw new Error('Checkout request does not match existing order')
     return { id: existingOrder.id }
   }
 
@@ -331,40 +336,9 @@ export async function createOrder(data: {
       })
   
       for (const item of pricedItems) {
-        if (item.variantId) {
-          const updatedVariant = await tx.productVariant.updateMany({
-            where: {
-              id: item.variantId,
-              productId: item.productId,
-              isActive: true,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          })
-  
-          if (updatedVariant.count !== 1) {
-            throw new Error('One or more products do not have enough stock.')
-          }
-        } else {
-          const updatedProduct = await tx.product.updateMany({
-            where: {
-              id: item.productId,
-              isActive: true,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          })
-  
-          if (updatedProduct.count !== 1) {
-            throw new Error('One or more products do not have enough stock.')
-          }
-        }
+        await reserveInventory(tx, item)
       }
-  
+
       return { id: order.id }
     })
   } catch (error) {
@@ -372,10 +346,10 @@ export async function createOrder(data: {
     // Another request with this idempotency key committed first.
     const prior = await prisma.order.findUnique({
       where: { checkoutRequestId: validated.checkoutRequestId },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, shippingAddress: true, notes: true, items: { select: { productId: true, variantId: true, quantity: true } } },
     })
     if (!prior) throw error
-    if (prior.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
+    if (!isSameCheckoutRequest(prior, validated, authUser?.id ?? null)) throw new Error('Checkout request does not match existing order')
     return { id: prior.id }
   }
 
