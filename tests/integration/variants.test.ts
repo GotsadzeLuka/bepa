@@ -4,12 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '../../src/lib/db'
 import { reconcileProductVariants } from '../../src/lib/variant-reconciliation'
 import { transitionOrder } from '../../src/lib/order-fulfillment'
+import { requireIsolatedDatabase } from '../../scripts/isolated-database'
 
-const testUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL
-if (process.env.BEPA_ISOLATED_TEST !== '1' || process.env.NODE_ENV !== 'test' ||
-    !testUrl || !['127.0.0.1','localhost'].includes(new URL(testUrl).hostname)) {
-  throw new Error('Integration tests require BEPA_ISOLATED_TEST=1, NODE_ENV=test and disposable loopback PostgreSQL')
-}
+requireIsolatedDatabase()
 
 const products:string[]=[]
 const orders:string[]=[]
