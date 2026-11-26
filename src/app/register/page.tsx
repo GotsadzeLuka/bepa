@@ -26,7 +26,9 @@ export default function RegisterPage() {
     }
 
     setOauthLoading(provider)
-    window.location.assign(`/auth/sign-in/${provider}?next=/account`)
+    const loginUrl = new URL(`/auth/sign-in/${provider}`, window.location.origin)
+    loginUrl.searchParams.set('next', '/account')
+    window.location.assign(loginUrl.toString())
   }
 
   return (

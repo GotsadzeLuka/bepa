@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+
+import { useCallback, useState } from 'react'
 import {
   createProduct,
   createProductImagesFromUrls,
@@ -114,30 +116,34 @@ export default function ProductsPage() {
     is_featured: false,
   })
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (signal?: AbortSignal) => {
     try {
       const data = await getProductsAdmin()
+      if (signal?.aborted) return
       setProducts((data as unknown as ProductWithRelations[]) || [])
     } catch {
+      if (signal?.aborted) return
       toast.error(toastText('fetchProductsFailed'))
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [toastText])
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
       const data = await getCategoriesAdmin()
+      if (signal?.aborted) return
       setCategories((data as unknown as Category[]).filter((category) => category.is_active))
     } catch {
+      if (signal?.aborted) return
       toast.error(toastText('fetchCategoriesFailed'))
     }
   }, [toastText])
 
-  useEffect(() => {
-    fetchProducts()
-    fetchCategories()
+  const loadCatalog = useCallback(async (signal: AbortSignal) => {
+    await Promise.all([fetchProducts(signal), fetchCategories(signal)])
   }, [fetchProducts, fetchCategories])
+  useLoadOnMount(loadCatalog)
 
   const generateSlug = (name: string) => {
     return name

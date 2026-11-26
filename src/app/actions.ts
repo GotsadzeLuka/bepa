@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { calculateOrderTotal } from '@/lib/money'
+import { CheckoutError, placeCheckout } from '@/lib/checkout'
 import prisma from '@/lib/db'
 import { getAuthUser, requireAuth } from '@/lib/auth'
 import { revalidateAdminCache, revalidateProductCache } from '@/lib/cache'
@@ -23,7 +23,7 @@ import {
  * Creates the profile if it doesn't exist (for new signups).
  */
 export async function updateProfile(data: {
-  fullName?: string
+  fullName?: string | null
   phone?: string | null
   address?: string | null
 }) {
@@ -219,177 +219,42 @@ export async function createOrder(data: {
   }
   notes?: string
   checkoutRequestId: string
-}) {
-  const hasInvalidCartIds = data.items.some((item) => {
+  guestCheckoutToken?: string
+}): Promise<{ id: string } | { error: string }> {
+  // Server actions are public entry points: runtime payloads need validation even
+  // when TypeScript callers promise a well-formed cart.
+  const hasInvalidCartIds = Array.isArray(data?.items) && data.items.some((item) => {
+    if (!item || typeof item !== 'object') return true
     const productIdOk = uuidSchema.safeParse(item.productId).success
     const variantIdOk = item.variantId ? uuidSchema.safeParse(item.variantId).success : true
     return !productIdOk || !variantIdOk
   })
 
   if (hasInvalidCartIds) {
-    throw new Error('Your cart contains stale items. Remove them and add current catalog products again.')
+    return { error: 'Your cart contains stale items. Remove them and add current catalog products again.' }
   }
 
-  const validated = createOrderSchema.parse(data)
+  const validated = createOrderSchema.safeParse(data)
+  if (!validated.success) return { error: 'Check your contact information and cart, then try again.' }
+
   const authUser = await getAuthUser()
-
-  const existingOrder = await prisma.order.findUnique({
-    where: { checkoutRequestId: validated.checkoutRequestId },
-    select: { id: true, userId: true },
-  })
-  if (existingOrder) {
-    if (existingOrder.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
-    return { id: existingOrder.id }
-  }
-
-  let order: { id: string }
+  let order
   try {
-    order = await prisma.$transaction(async (tx) => {
-      const productIds = [...new Set(validated.items.map((item) => item.productId))]
-      const variantIds = [
-        ...new Set(
-          validated.items
-            .map((item) => item.variantId)
-            .filter((variantId): variantId is string => Boolean(variantId))
-        ),
-      ]
-  
-      const [products, variants] = await Promise.all([
-        tx.product.findMany({
-          where: {
-            id: { in: productIds },
-            isActive: true,
-          },
-          select: {
-            id: true,
-            slug: true,
-            price: true,
-            salePrice: true,
-            stock: true,
-          },
-        }),
-        tx.productVariant.findMany({
-          where: {
-            id: { in: variantIds },
-            isActive: true,
-          },
-          select: {
-            id: true,
-            productId: true,
-            price: true,
-            stock: true,
-          },
-        }),
-      ])
-  
-      const productsById = new Map(products.map((product) => [product.id, product]))
-      const variantsById = new Map(variants.map((variant) => [variant.id, variant]))
-      const pricedItems = validated.items.map((item) => {
-        const product = productsById.get(item.productId)
-        const variant = item.variantId ? variantsById.get(item.variantId) : null
-  
-        if (!product || (item.variantId && !variant)) {
-          throw new Error('One or more products are unavailable.')
-        }
-  
-        if (variant && variant.productId !== item.productId) {
-          throw new Error('Invalid product variant selected.')
-        }
-  
-        const stock = variant?.stock ?? product.stock
-        if (stock < item.quantity) {
-          throw new Error('One or more products do not have enough stock.')
-        }
-  
-        return {
-          ...item,
-          price: variant?.price ?? product.salePrice ?? product.price,
-        }
-      })
-  
-      const total = calculateOrderTotal(pricedItems)
-  
-      const order = await tx.order.create({
-        data: {
-          userId: authUser?.id ?? null,
-          checkoutRequestId: validated.checkoutRequestId,
-          status: 'pending',
-          total,
-          shippingAddress: validated.shippingAddress,
-          notes: validated.notes,
-        },
-      })
-  
-      await tx.orderItem.createMany({
-        data: pricedItems.map((item) => ({
-          orderId: order.id,
-          productId: item.productId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      })
-  
-      for (const item of pricedItems) {
-        if (item.variantId) {
-          const updatedVariant = await tx.productVariant.updateMany({
-            where: {
-              id: item.variantId,
-              productId: item.productId,
-              isActive: true,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          })
-  
-          if (updatedVariant.count !== 1) {
-            throw new Error('One or more products do not have enough stock.')
-          }
-        } else {
-          const updatedProduct = await tx.product.updateMany({
-            where: {
-              id: item.productId,
-              isActive: true,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          })
-  
-          if (updatedProduct.count !== 1) {
-            throw new Error('One or more products do not have enough stock.')
-          }
-        }
-      }
-  
-      return { id: order.id }
-    })
+    order = await placeCheckout(prisma, validated.data, authUser?.id ?? null)
   } catch (error) {
-    if ((error as { code?: string })?.code !== 'P2002') throw error
-    // Another request with this idempotency key committed first.
-    const prior = await prisma.order.findUnique({
-      where: { checkoutRequestId: validated.checkoutRequestId },
-      select: { id: true, userId: true },
-    })
-    if (!prior) throw error
-    if (prior.userId !== (authUser?.id ?? null)) throw new Error('Checkout request ownership mismatch')
-    return { id: prior.id }
+    if (error instanceof CheckoutError) {
+      if (error.cause) console.error('[checkout] Could not complete the order transaction')
+      return { error: error.message }
+    }
+    throw error
   }
 
-  const orderedProducts = await prisma.product.findMany({
-    where: { id: { in: [...new Set(validated.items.map((item) => item.productId))] } },
-    select: { id: true, slug: true },
-  })
-  for (const product of orderedProducts) {
-    revalidateProductCache(product)
+  if (order.products.length > 0) {
+    for (const product of order.products) revalidateProductCache(product)
+    revalidateAdminCache()
+    revalidatePath('/admin')
+    revalidatePath('/admin/orders')
+    revalidatePath('/account/orders')
   }
-
-  revalidateAdminCache()
-  revalidatePath('/admin')
-  revalidatePath('/admin/orders')
-  revalidatePath('/account/orders')
   return { id: order.id }
 }

@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+
+import { useCallback, useState } from 'react'
 import { getCategoriesAdmin, createCategory, updateCategory, deleteCategory, uploadAdminImage } from '@/app/admin/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,19 +59,19 @@ export default function CategoriesPage() {
     sortOrder: 0,
   })
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
       const data = await getCategoriesAdmin()
+      if (signal?.aborted) return
       setCategories(data as unknown as Category[])
     } catch {
+      if (signal?.aborted) return
       toast.error(toastText('fetchCategoriesFailed'))
     }
-    setLoading(false)
+    if (!signal?.aborted) setLoading(false)
   }, [toastText])
 
-  useEffect(() => {
-    fetchCategories()
-  }, [fetchCategories])
+  useLoadOnMount(fetchCategories)
 
   const generateSlug = (name: string) => {
     return name

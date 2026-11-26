@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+
+import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Package, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -54,10 +56,11 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (signal?: AbortSignal) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const user = session?.user
+      if (signal?.aborted) return
       if (!user) return
 
       const { data, error } = await supabase
@@ -84,17 +87,17 @@ export default function OrdersPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
+      if (signal?.aborted) return
       setOrders(data as unknown as Order[])
     } catch (error) {
+      if (signal?.aborted) return
       console.error('Error loading orders:', error)
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [supabase])
 
-  useEffect(() => {
-    loadOrders()
-  }, [loadOrders])
+  useLoadOnMount(loadOrders)
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {

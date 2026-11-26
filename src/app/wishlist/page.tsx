@@ -1,6 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+import { removeFromWishlist } from '@/app/actions'
+
+import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Heart, ShoppingBag, Trash2, ShoppingCart } from 'lucide-react'
@@ -31,7 +34,7 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
 
-  const fetchWishlist = useCallback(async (userId: string) => {
+  const fetchWishlist = useCallback(async (userId: string, signal?: AbortSignal) => {
     try {
       const { data, error } = await supabase
         .from('wishlist')
@@ -49,41 +52,36 @@ export default function WishlistPage() {
         .eq('user_id', userId)
 
       if (error) throw error
+      if (signal?.aborted) return
       setItems(data as unknown as WishlistItem[])
     } catch (error) {
+      if (signal?.aborted) return
       console.error('Error fetching wishlist:', error)
       toast.error('Failed to load wishlist')
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [supabase])
 
-  const checkAuth = useCallback(async () => {
+  const checkAuth = useCallback(async (signal?: AbortSignal) => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user ?? null
+    if (signal?.aborted) return
     setUser(user)
 
     if (user) {
-      fetchWishlist(user.id)
+      await fetchWishlist(user.id, signal)
     } else {
       setLoading(false)
     }
   }, [fetchWishlist, supabase])
 
-  useEffect(() => {
-    checkAuth()
-  }, [checkAuth])
+  useLoadOnMount(checkAuth)
 
-  const removeFromWishlist = async (id: string) => {
+  const removeItem = async (productId: string) => {
     try {
-      const { error } = await supabase
-        .from('wishlist')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
-      setItems(items.filter((item) => item.id !== id))
+      await removeFromWishlist(productId)
+      setItems((current) => current.filter((item) => item.product.id !== productId))
       toast.success('Removed from wishlist')
     } catch (error) {
       console.error('Error removing from wishlist:', error)
@@ -235,7 +233,7 @@ export default function WishlistPage() {
                     size="sm"
                     className="rounded-full border-slate-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                     aria-label={t('removeFromWishlist')}
-                    onClick={() => removeFromWishlist(item.id)}
+                    onClick={() => removeItem(item.product.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
