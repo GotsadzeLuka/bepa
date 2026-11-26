@@ -1,4 +1,5 @@
 import type { OrderStatus, Prisma } from '@prisma/client'
+import { lockProducts } from './inventory'
 import { isAllowedOrderStatusTransition } from './order-status'
 
 /**
@@ -24,6 +25,7 @@ export async function transitionOrder(tx: Prisma.TransactionClient, orderId: str
   if (changed.count !== 1) throw new Error('Order status changed; refresh and retry')
 
   if (nextStatus === 'cancelled') {
+    await lockProducts(tx, current.items.flatMap((item) => item.productId ? [item.productId] : []))
     for (const item of current.items) {
       // Deleted product or variant records may leave nullable foreign keys.
       // They cannot be restocked, but cancellation must remain possible.

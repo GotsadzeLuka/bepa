@@ -1,4 +1,11 @@
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
+
+/** Checkout, variant edits and restocking serialize on the parent product. */
+export async function lockProducts(tx: Prisma.TransactionClient, productIds: string[]) {
+  if (productIds.length === 0) return
+  const ids = Prisma.join([...new Set(productIds)].map((id) => Prisma.sql`${id}::uuid`))
+  await tx.$queryRaw`SELECT id FROM products WHERE id IN (${ids}) ORDER BY id FOR UPDATE`
+}
 
 /**
  * The checkout stock reservation boundary. This function must be invoked

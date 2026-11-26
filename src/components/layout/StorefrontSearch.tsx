@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { type FormEvent, useEffect, useId, useMemo, useRef, useState, useTransition } from 'react'
+import { type FormEvent, useEffect, useId, useMemo, useState, useTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight, Loader2, Search, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -40,30 +40,37 @@ interface StorefrontSearchProps {
   variant?: 'desktop' | 'mobile'
 }
 
-export function StorefrontSearch({
+export function StorefrontSearch(props: StorefrontSearchProps) {
+  const currentSearch = useSearchParams().get('search') ?? ''
+  return <StorefrontSearchInput key={currentSearch} currentSearch={currentSearch} {...props} />
+}
+
+function StorefrontSearchInput({
+  currentSearch,
   autoFocus,
   className,
   onNavigate,
   variant = 'desktop',
-}: StorefrontSearchProps) {
+}: StorefrontSearchProps & { currentSearch: string }) {
   const t = useTranslations('common')
   const locale = useLocale()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const currentSearch = searchParams.get('search') ?? ''
   const inputId = useId()
   const [query, setQuery] = useState(currentSearch)
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [results, setResults] = useState<SearchPreviewResult[]>([])
-  const [total, setTotal] = useState(0)
-  const [previewState, setPreviewState] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle')
+  const [preview, setPreview] = useState<(SearchPreviewResponse & { failed?: boolean }) | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [isRouting, startRouting] = useTransition()
-  const latestRequest = useRef(0)
 
   const trimmedQuery = query.trim()
   const canSearch = trimmedQuery.length >= MIN_QUERY_LENGTH
   const waitingForDebounce = canSearch && trimmedQuery !== debouncedQuery
+  const currentPreview = preview?.query === trimmedQuery && trimmedQuery === debouncedQuery ? preview : null
+  const results = currentPreview?.results ?? []
+  const total = currentPreview?.total ?? 0
+  const previewState = currentPreview
+    ? currentPreview.failed ? 'error' : results.length > 0 ? 'success' : 'empty'
+    : canSearch && !waitingForDebounce ? 'loading' : 'idle'
   const isWorking = isRouting || previewState === 'loading' || waitingForDebounce
   const showPanel = panelOpen && trimmedQuery.length > 0
 
@@ -79,65 +86,31 @@ export function StorefrontSearch({
   }, [isRouting, previewState, t, total, trimmedQuery.length, waitingForDebounce])
 
   useEffect(() => {
-    setQuery(currentSearch)
-  }, [currentSearch])
-
-  useEffect(() => {
-    if (!canSearch) {
-      setDebouncedQuery('')
-      setResults([])
-      setTotal(0)
-      setPreviewState('idle')
-      return
-    }
-
-    const handle = window.setTimeout(() => {
-      setDebouncedQuery(trimmedQuery)
-    }, SEARCH_DEBOUNCE_MS)
-
+    if (!canSearch) return
+    const handle = window.setTimeout(() => setDebouncedQuery(trimmedQuery), SEARCH_DEBOUNCE_MS)
     return () => window.clearTimeout(handle)
   }, [canSearch, trimmedQuery])
 
   useEffect(() => {
-    if (!debouncedQuery) return
-
+    if (!canSearch || debouncedQuery !== trimmedQuery) return
     const controller = new AbortController()
-    const requestId = latestRequest.current + 1
-    latestRequest.current = requestId
-
-    setPreviewState('loading')
-
     async function loadPreview() {
       try {
         const response = await fetch(`/api/search/products?q=${encodeURIComponent(debouncedQuery)}`, {
           signal: controller.signal,
         })
-
-        if (!response.ok) {
-          throw new Error('Search preview failed')
-        }
-
+        if (!response.ok) throw new Error('Search preview failed')
         const data = (await response.json()) as SearchPreviewResponse
-
-        if (requestId !== latestRequest.current) return
-
-        setResults(data.results)
-        setTotal(data.total)
-        setPreviewState(data.results.length > 0 ? 'success' : 'empty')
+        if (!controller.signal.aborted) setPreview({ ...data, query: debouncedQuery })
       } catch {
-        if (controller.signal.aborted) return
-        if (requestId !== latestRequest.current) return
-
-        setResults([])
-        setTotal(0)
-        setPreviewState('error')
+        if (!controller.signal.aborted) {
+          setPreview({ query: debouncedQuery, results: [], total: 0, failed: true })
+        }
       }
     }
-
-    loadPreview()
-
+    void loadPreview()
     return () => controller.abort()
-  }, [debouncedQuery])
+  }, [canSearch, debouncedQuery, trimmedQuery])
 
   const navigateToSearch = (value = trimmedQuery) => {
     const nextQuery = value.trim()
@@ -162,9 +135,7 @@ export function StorefrontSearch({
   const handleClear = () => {
     setQuery('')
     setDebouncedQuery('')
-    setResults([])
-    setTotal(0)
-    setPreviewState('idle')
+    setPreview(null)
   }
 
   const previewPanel = showPanel ? (

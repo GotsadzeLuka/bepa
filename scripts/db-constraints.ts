@@ -1,8 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Client } from 'pg'
+import { requireIsolatedDatabase } from './isolated-database'
 
-const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL
+const url = process.env.BEPA_ISOLATED_TEST === '1'
+  ? requireIsolatedDatabase()
+  : process.env.DIRECT_URL ?? process.env.DATABASE_URL
 if (!url) throw new Error('DIRECT_URL or DATABASE_URL is required')
 
 const client = new Client({ connectionString: url, connectionTimeoutMillis: 10_000 })

@@ -1,19 +1,35 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { after, test } from 'node:test'
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { prisma } from '../../src/lib/db'
+import { checkoutRequestIdForGuestToken } from '../../src/lib/checkout-attempt'
+import { CheckoutError, placeCheckout } from '../../src/lib/checkout'
 import { reserveInventory } from '../../src/lib/inventory'
 import { transitionOrder } from '../../src/lib/order-fulfillment'
+import { createOrderSchema } from '../../src/lib/validations'
+import { requireIsolatedDatabase } from '../../scripts/isolated-database'
 
-const testUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL
-if (process.env.BEPA_ISOLATED_TEST !== '1' || process.env.NODE_ENV !== 'test' ||
-    !testUrl || !['127.0.0.1','localhost'].includes(new URL(testUrl).hostname)) {
-  throw new Error('Integration tests require BEPA_ISOLATED_TEST=1, NODE_ENV=test and disposable loopback PostgreSQL')
-}
+requireIsolatedDatabase()
 
 const products: string[] = []
 const orders: string[] = []
 const profiles: string[] = []
+
+async function checkoutInput(productId: string) {
+  const guestCheckoutToken = randomUUID()
+  return createOrderSchema.parse({
+    checkoutRequestId: await checkoutRequestIdForGuestToken(guestCheckoutToken),
+    guestCheckoutToken,
+    items: [{ productId, quantity: 1 }],
+    shippingAddress: {
+      firstName: 'Test', lastName: 'Buyer', email: 'buyer@example.invalid',
+      address: '123 Demo Street', city: 'Tbilisi', phone: '+995555123456',
+      postalCode: undefined,
+    },
+  })
+}
 
 async function createProduct(stock = 1) {
   const slug = 'integration-' + randomUUID()
@@ -47,21 +63,15 @@ after(async () => {
 
 test('only one concurrent buyer can reserve the final product unit', async () => {
   const p = await createProduct()
-  const buy = () => prisma.$transaction(async tx => {
-    const order = await tx.order.create({data: {
-      checkoutRequestId: randomUUID(), total:'10.00', shippingAddress:{test:true},
-    }})
+  const buy = async () => {
+    const order = await placeCheckout(prisma, await checkoutInput(p.id), null)
     orders.push(order.id)
-    await tx.orderItem.create({data: {
-      orderId:order.id, productId:p.id, price:'10.00', quantity:1,
-    }})
-    await reserveInventory(tx, {productId:p.id, quantity:1})
     return order.id
-  })
+  }
   const outcomes = await Promise.allSettled([buy(), buy()])
-  assert.equal(outcomes.filter(o=>o.status==='fulfilled').length,1)
-  assert.equal(await prisma.order.count({where:{id:{in:orders}}}),1)
-  assert.equal((await prisma.product.findUniqueOrThrow({where:{id:p.id}})).stock,0)
+  assert.equal(outcomes.filter((outcome) => outcome.status === 'fulfilled').length, 1)
+  assert.equal(await prisma.orderItem.count({ where: { productId: p.id } }), 1)
+  assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: p.id } })).stock, 0)
 })
 
 test('failure after reservation rolls inventory and order back', async () => {
@@ -76,18 +86,49 @@ test('failure after reservation rolls inventory and order back', async () => {
   assert.equal(await prisma.order.count({where:{checkoutRequestId:key}}),0)
 })
 
-test('concurrent idempotency key cannot persist two orders', async () => {
-  const p=await createProduct(2), key=randomUUID()
-  const buy=()=>prisma.$transaction(async tx=>{
-    const order=await tx.order.create({data:{checkoutRequestId:key,total:'10.00',shippingAddress:{test:true}}})
+test('concurrent legitimate retries return one order even when stock is exhausted', async () => {
+  const p = await createProduct()
+  const input = await checkoutInput(p.id)
+  const buy = async () => {
+    const order = await placeCheckout(prisma, input, null)
     orders.push(order.id)
-    await reserveInventory(tx,{productId:p.id,quantity:1})
-    return order.id
+    return order
+  }
+  const [first, second] = await Promise.all([buy(), buy()])
+  assert.equal(first.id, second.id)
+  assert.equal(await prisma.order.count({ where: { checkoutRequestId: input.checkoutRequestId } }), 1)
+  assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: p.id } })).stock, 0)
+})
+
+test('checkout uses database prices and does not persist the guest token', async () => {
+  const p = await createProduct()
+  await prisma.product.update({ where: { id: p.id }, data: { salePrice: '7.49' } })
+  const input = await checkoutInput(p.id)
+  const saved = await placeCheckout(prisma, input, null)
+  orders.push(saved.id)
+  const order = await prisma.order.findUniqueOrThrow({ where: { id: saved.id }, include: { items: true } })
+  assert.equal(order.total.toFixed(2), '7.49')
+  assert.equal(order.items[0].price.toFixed(2), '7.49')
+  assert.notEqual(order.checkoutRequestId, input.guestCheckoutToken)
+  await assert.rejects(
+    placeCheckout(prisma, { ...input, guestCheckoutToken: randomUUID() }, null),
+    CheckoutError,
+  )
+})
+
+test('an unavailable PostgreSQL connection returns a controlled checkout error', async () => {
+  const offline = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: 'postgresql://test@127.0.0.1:1/be_pa', connectionTimeoutMillis: 500 }),
+    log: [],
   })
-  const outcomes=await Promise.allSettled([buy(),buy()])
-  assert.equal(outcomes.filter(o=>o.status==='fulfilled').length,1)
-  assert.equal(await prisma.order.count({where:{checkoutRequestId:key}}),1)
-  assert.equal((await prisma.product.findUniqueOrThrow({where:{id:p.id}})).stock,1)
+  try {
+    await assert.rejects(
+      placeCheckout(offline, await checkoutInput(randomUUID()), null),
+      { message: 'Checkout is temporarily unavailable. Your cart has been kept. Please retry.' },
+    )
+  } finally {
+    await offline.$disconnect()
+  }
 })
 
 test('concurrent cancellation does not restore stock more than once', async () => {

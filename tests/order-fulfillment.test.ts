@@ -13,6 +13,7 @@ function fixture(initialStatus: OrderStatus, variant = false) {
   const calls = { orderUpdates: 0, productRestocks: 0, variantRestocks: 0 }
   let allowUpdate = true
   const tx = {
+    $queryRaw: async () => [{ id: 'demo-product' }],
     order: {
       findUnique: async () => ({ ...state }),
       updateMany: async ({where, data}: {where:{status:OrderStatus};data:{status:OrderStatus}}) => {

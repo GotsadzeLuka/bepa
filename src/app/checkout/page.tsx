@@ -1,5 +1,7 @@
 'use client'
 
+import { checkoutRequestIdForGuestToken } from '@/lib/checkout-attempt'
+
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -69,7 +71,7 @@ export default function CheckoutPage() {
   const t = useTranslations('common')
   const { items, getTotal, clearCart, hasHydrated } = useCartStore()
   const [loading, setLoading] = useState(false)
-  const checkoutAttemptRef = useRef<{ fingerprint: string; id: string } | null>(null)
+  const checkoutAttemptRef = useRef<{ fingerprint: string; guestToken: string } | null>(null)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CheckoutForm>(initialFormData)
@@ -177,12 +179,14 @@ export default function CheckoutPage() {
     // identifier on a retry prevents duplicate orders and stock decrements.
     const fingerprint = JSON.stringify({ orderLines, formData, dialCode, localNumber, locationUrl })
     if (checkoutAttemptRef.current?.fingerprint !== fingerprint) {
-      checkoutAttemptRef.current = { fingerprint, id: crypto.randomUUID() }
+      checkoutAttemptRef.current = { fingerprint, guestToken: crypto.randomUUID() }
     }
+    const attempt = checkoutAttemptRef.current
 
     try {
       const order = await createOrder({
-        checkoutRequestId: checkoutAttemptRef.current!.id,
+        checkoutRequestId: await checkoutRequestIdForGuestToken(attempt.guestToken),
+        guestCheckoutToken: attempt.guestToken,
         items: orderLines,
         shippingAddress: {
           firstName: formData.firstName.trim(),
@@ -197,13 +201,16 @@ export default function CheckoutPage() {
         notes: formData.notes.trim() || undefined,
       })
 
+      if ('error' in order) {
+        toast.error(order.error)
+        return
+      }
       setOrderId(order.id)
       setOrderPlaced(true)
       clearCart()
       toast.success('Order placed successfully')
-    } catch (error) {
-      console.error('Error placing order:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to place order. Please try again.')
+    } catch {
+      toast.error('Could not confirm the order. Retry from this page to reuse the same checkout attempt.')
     } finally {
       setLoading(false)
     }

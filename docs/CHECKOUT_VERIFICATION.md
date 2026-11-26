@@ -1,11 +1,8 @@
-# Checkout remediation: scope and evidence
+# Checkout and order lifecycle
 
-- Guest checkout request UUIDs are not authentication credentials. An existing guest order ID is returned only if the caller provides the matching original shipping address, notes, and cart; authenticated callers additionally require the original account identity.
-- The legacy order service status-update method delegates to the transactional state machine, preserving cancellation/restock consistency for callers using this helper.
-- These changes are covered by focused source-level regression cases, not by real PostgreSQL concurrency evidence.
+- **Server pricing.** The transaction reads active catalog records, validates product-to-variant ownership, and calculates totals using decimal arithmetic before it creates order lines.
+- **Retries.** A transaction-scoped PostgreSQL lock serializes one attempt ID. Guest callers present a separate random token. The attempt UUID is derived from that token with SHA-256, and only the UUID is persisted. Replays also match the buyer, cart and shipping payload. A retry from the same form can return the original order after its final item sells.
+- **Stock and cancellation.** Checkout and cancellation lock parent product rows in a consistent order. Cancellation compares the current order state before restocking. Retired variants referenced by orders keep their IDs.
+- **Scope.** BEPA records an order for offline confirmation. The browser keeps its attempt token while the checkout page is open. An open guest form loaded before this change needs a fresh checkout attempt after deployment.
 
-## Pending verification gates
-
-Run `npm ci && npm run lint && npm test && npm run typecheck && npm run build`, followed by isolated PostgreSQL integration tests for concurrent checkout, duplicate retries, cancellation races, rollback, review uniqueness, and RLS. Verify all admin action entry points enforce authorization. Hosted CI currently fails before its steps run; this cannot be treated as an application test result.
-
-Do not claim production-ready transactional guarantees until real-database tests and hosted CI have passed.
+The [PostgreSQL suite](../tests/integration/checkout.test.ts) calls the same checkout and fulfillment services as the application. [Run the suite locally](POSTGRESQL_TESTING.md).

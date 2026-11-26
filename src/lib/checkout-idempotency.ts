@@ -8,7 +8,7 @@ type StoredCheckout = {
   items: Array<{ productId: string | null; variantId: string | null; quantity: number }>
 }
 
-/** Request IDs are idempotency tokens, not guest order ownership credentials. */
+/** Compare the saved order after authenticating the buyer or checking their guest token. */
 export function isSameCheckoutRequest(
   stored: StoredCheckout,
   incoming: CreateOrderInput,
@@ -19,10 +19,7 @@ export function isSameCheckoutRequest(
   const address = stored.shippingAddress
   if (!address || Array.isArray(address) || typeof address !== 'object') return false
   const keys = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'postalCode', 'locationUrl'] as const
-  const existingKeys = Object.keys(address).sort()
-  const incomingKeys = Object.keys(incoming.shippingAddress).sort()
-  if (existingKeys.length !== incomingKeys.length ||
-      existingKeys.some((key, index) => key !== incomingKeys[index])) return false
+  if (Object.keys(address).some((key) => !keys.some((allowed) => allowed === key))) return false
   if (!keys.every((key) => address[key] === incoming.shippingAddress[key])) return false
 
   if (stored.items.length !== incoming.items.length) return false

@@ -16,7 +16,7 @@ import { isGoogleMapsUrl } from '@/lib/location'
 // COMMON SCHEMAS
 // =====================================================
 
-export const uuidSchema = z.string().uuid('Invalid ID format')
+export const uuidSchema = z.string().uuid('Invalid ID format').transform((value) => value.toLowerCase())
 
 export const slugSchema = z.string()
   .min(1, 'Slug is required')
@@ -70,7 +70,7 @@ export const registerSchema = z.object({
 })
 
 export const updateProfileSchema = z.object({
-  fullName: z.string().min(2).max(100).optional(),
+  fullName: z.string().min(2).max(100).optional().nullable(),
   phone: phoneSchema.optional().nullable(),
   address: z.string().max(500).optional().nullable(),
 })
@@ -173,6 +173,7 @@ export const createOrderSchema = z.object({
   notes: z.string().max(500).optional(),
   items: z.array(orderItemSchema).min(1, 'Order must have at least one item').max(50),
   checkoutRequestId: uuidSchema,
+  guestCheckoutToken: uuidSchema.optional(),
 }).superRefine((order, context) => {
   const seen = new Set<string>()
   order.items.forEach((item, index) => {

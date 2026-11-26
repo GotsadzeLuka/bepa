@@ -1,6 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+import { updateProfile } from '@/app/actions'
+
+import { useCallback, useMemo, useState } from 'react'
 import { User } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
@@ -20,10 +23,11 @@ export default function AccountPage() {
     address: '',
   })
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (signal?: AbortSignal) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const user = session?.user
+      if (signal?.aborted) return
       if (!user) return
 
       setUser(user)
@@ -34,7 +38,7 @@ export default function AccountPage() {
         .eq('id', user.id)
         .single()
 
-      if (profile) {
+      if (profile && !signal?.aborted) {
         setFormData({
           full_name: profile.full_name || '',
           phone: profile.phone || '',
@@ -42,15 +46,14 @@ export default function AccountPage() {
         })
       }
     } catch (error) {
+      if (signal?.aborted) return
       console.error('Error loading profile:', error)
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [supabase])
 
-  useEffect(() => {
-    loadProfile()
-  }, [loadProfile])
+  useLoadOnMount(loadProfile)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,21 +62,14 @@ export default function AccountPage() {
     setSaving(true)
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name || null,
-          phone: formData.phone || null,
-          address: formData.address || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
-
-      if (error) throw error
+      await updateProfile({
+        fullName: formData.full_name.trim() || null,
+        phone: formData.phone.trim() || null,
+        address: formData.address.trim() || null,
+      })
 
       toast.success('Profile updated successfully')
-    } catch (error) {
-      console.error('Error updating profile:', error)
+    } catch {
       toast.error('Failed to update profile')
     } finally {
       setSaving(false)

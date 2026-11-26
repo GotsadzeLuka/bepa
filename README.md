@@ -14,24 +14,13 @@ BEPA is a Next.js auto-parts storefront with a database-backed catalog, cart, se
 [Architecture and tradeoffs](docs/ARCHITECTURE.md) · [Security and rollout](docs/SECURITY.md) · [Portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
 
 
-## Engineering hardening: disposable database tests
+## Review the checkout
 
-The checkout uses the actual conditional `reserveInventory` transaction boundary and verifies that reusing a guest checkout request ID cannot return a different cart/address's order ID. Administrative variant synchronization preserves order-linked variant IDs so later cancellation can restore stock correctly. The authoritative order status transition service is also used by legacy service callers. See [variant history](docs/VARIANT_HISTORY.md), [checkout safety](docs/CHECKOUT_VERIFICATION.md), and [database reproducibility](docs/POSTGRESQL_TESTING.md).
+The [checkout service](src/lib/checkout.ts) reads catalog prices, reserves inventory, and creates order lines in one PostgreSQL transaction. A per-attempt database lock makes simultaneous retries return one order. Guest retries prove possession of a random token whose derived UUID is stored as the attempt ID. The [fulfillment service](src/lib/order-fulfillment.ts) restores inventory on cancellation, and [variant reconciliation](src/lib/variant-reconciliation.ts) retains the variant IDs that earlier orders reference.
 
-A separate CI job provisions disposable PostgreSQL 16, applies the Prisma schema plus additional data-integrity constraints, bootstraps isolated Supabase-like authentication roles/RLS policies, and runs **real SQL-backed integration tests** for concurrency, rollback, cancellation, review uniqueness and permissions. The tests are implemented but **have not executed on the PR's GitHub runner**; runners have been failing before steps start. For a local disposable database, run:
-
-```bash
-npm ci
-export NODE_ENV=test
-export DATABASE_URL='postgresql://ci:ci@127.0.0.1:5432/bepa'
-export DIRECT_URL="$DATABASE_URL"
-npx prisma db push
-npm run db:constraints
-npm run db:rls:bootstrap
-npm run test:integration
-```
-
-**Never use these disposable-test commands against an actual Supabase database.** Existing production installations need an operator-reviewed migration for the updated policies and constraints, and hosted credentials/SSO integrations need independent acceptance tests.
+- **Try it locally** with a synthetic catalog and guest checkout. See the [PostgreSQL setup and tests](docs/POSTGRESQL_TESTING.md).
+- **Inspect the evidence** in the [checkout integration suite](tests/integration/checkout.test.ts) and [database access tests](tests/integration/rls.test.ts).
+- **Review deployment requirements** for Supabase Auth, Storage, database roles and schema changes. See the [security and rollout guide](docs/SECURITY.md).
 
 ## Stack
 
@@ -40,12 +29,12 @@ npm run test:integration
 - Supabase Auth, Row Level Security, Storage, and PostgreSQL
 - Prisma ORM with the PostgreSQL adapter
 
-## Local Setup
+## Supabase-backed development
 
 1. Install dependencies (Node.js 22 recommended):
 
 ```bash
-npm install
+npm ci
 ```
 
 2. Create a local environment file and fill in the required values:
@@ -63,7 +52,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Complete storefront, login and order operations require configured Supabase credentials. **Offline tests and source review do not require the old hosted environment.**
+Open [http://localhost:3000](http://localhost:3000). Supabase credentials enable Google sign-in, account pages and admin uploads. A disposable local PostgreSQL database supports the public catalog and guest checkout independently.
 
 ## Environment Variables
 

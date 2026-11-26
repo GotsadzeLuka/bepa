@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+
+import { useCallback, useState } from 'react'
 import { getCustomersAdmin } from '@/app/admin/actions'
 import { Input } from '@/components/ui/input'
 import {
@@ -27,21 +29,21 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const fetchCustomers = useCallback(async () => {
+  const fetchCustomers = useCallback(async (signal?: AbortSignal) => {
     try {
       const data = await getCustomersAdmin()
+      if (signal?.aborted) return
       setCustomers(data)
     } catch (error) {
+      if (signal?.aborted) return
       console.error(error)
       toast.error(toastText('fetchCustomersFailed'))
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [toastText])
 
-  useEffect(() => {
-    fetchCustomers()
-  }, [fetchCustomers])
+  useLoadOnMount(fetchCustomers)
 
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const visibleCustomers = normalizedSearch

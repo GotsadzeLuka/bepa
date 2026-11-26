@@ -1,12 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Client } from 'pg'
+import { requireIsolatedDatabase } from './isolated-database'
 
-const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL
-if (!url || process.env.NODE_ENV !== 'test' ||
-    !['127.0.0.1', 'localhost'].includes(new URL(url).hostname)) {
-  throw new Error('RLS bootstrap requires NODE_ENV=test and disposable loopback PostgreSQL')
-}
+const url = requireIsolatedDatabase()
 
 const bootstrap = `
   CREATE SCHEMA IF NOT EXISTS auth;

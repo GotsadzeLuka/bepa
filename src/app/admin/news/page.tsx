@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+
+import { useCallback, useState } from 'react'
 import { Plus, Pencil, Trash2, Newspaper, ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,21 +68,21 @@ export default function AdminNewsPage() {
     is_published: true,
   })
 
-  const fetchNews = useCallback(async () => {
+  const fetchNews = useCallback(async (signal?: AbortSignal) => {
     try {
       const data = await getNewsAdmin()
+      if (signal?.aborted) return
       setNews((data as unknown as NewsItem[]) || [])
     } catch (error) {
+      if (signal?.aborted) return
       toast.error(toastText('loadNewsFailed'))
       console.error(error)
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [toastText])
 
-  useEffect(() => {
-    fetchNews()
-  }, [fetchNews])
+  useLoadOnMount(fetchNews)
 
   const generateSlug = (title: string) => {
     return title

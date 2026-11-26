@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useLoadOnMount } from '@/lib/use-load-on-mount'
+
+import { useCallback, useState } from 'react'
 import { approveReview, deleteReview, getReviewsAdmin } from '@/app/admin/actions'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,21 +32,21 @@ export default function ReviewsPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminReview | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchReviews = useCallback(async () => {
+  const fetchReviews = useCallback(async (signal?: AbortSignal) => {
     try {
       const data = await getReviewsAdmin()
+      if (signal?.aborted) return
       setReviews(data)
     } catch (error) {
+      if (signal?.aborted) return
       console.error(error)
       toast.error(toastText('fetchReviewsFailed'))
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [toastText])
 
-  useEffect(() => {
-    fetchReviews()
-  }, [fetchReviews])
+  useLoadOnMount(fetchReviews)
 
   const handleApprove = async (id: string) => {
     try {

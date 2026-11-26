@@ -1,6 +1,6 @@
-import { getSafeRedirect } from '@/lib/safe-redirect'
 'use client'
 
+import { getSafeRedirect } from '@/lib/safe-redirect'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
