@@ -1,5 +1,5 @@
-export function requireIsolatedDatabase(): string {
-  const { BEPA_ISOLATED_TEST, NODE_ENV, DATABASE_URL, DIRECT_URL } = process.env
+export function requireIsolatedDatabase(env: NodeJS.ProcessEnv = process.env): string {
+  const { BEPA_ISOLATED_TEST, NODE_ENV, DATABASE_URL, DIRECT_URL } = env
   const urls = [DATABASE_URL, DIRECT_URL].filter((value): value is string => Boolean(value))
   if (BEPA_ISOLATED_TEST !== '1' || NODE_ENV !== 'test' || !DATABASE_URL ||
       !urls.every((value) => {
@@ -9,5 +9,5 @@ export function requireIsolatedDatabase(): string {
       })) {
     throw new Error('Set BEPA_ISOLATED_TEST=1, NODE_ENV=test and disposable loopback PostgreSQL URLs.')
   }
-  return DIRECT_URL ?? DATABASE_URL
+  return DIRECT_URL || DATABASE_URL
 }

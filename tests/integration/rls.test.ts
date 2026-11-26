@@ -2,12 +2,9 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { test, before, after } from 'node:test'
 import { Client, type QueryResult } from 'pg'
+import { requireIsolatedDatabase } from '../../scripts/isolated-database'
 
-const url=process.env.DIRECT_URL ?? process.env.DATABASE_URL
-if (!url || process.env.NODE_ENV !== 'test' ||
-    !['localhost','127.0.0.1'].includes(new URL(url).hostname)) {
-  throw new Error('Requires isolated localhost PostgreSQL and NODE_ENV=test')
-}
+const url = requireIsolatedDatabase()
 const admin = new Client({connectionString:url})
 const ownerId=randomUUID(),otherId=randomUUID(),adminId=randomUUID(),productId=randomUUID()
 const orderId=randomUUID(),reviewId=randomUUID()
